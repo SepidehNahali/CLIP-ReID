@@ -19,14 +19,20 @@ class VeRi(BaseImageDataset):
        # cameras: 20
        """
 
-    dataset_dir = 'VeRi'
+    dataset_dir = 'T2I-VeRi'
 
-    def __init__(self, root='', verbose=True, **kwargs):
+    # def __init__(self, root='', verbose=True, **kwargs):
+    #     super(VeRi, self).__init__()
+    #     self.dataset_dir = osp.join(root, self.dataset_dir)
+    #     self.train_dir = osp.join(self.dataset_dir, 'image_train')
+    #     self.query_dir = osp.join(self.dataset_dir, 'image_query')
+    #     self.gallery_dir = osp.join(self.dataset_dir, 'image_test')
+
+    def __init__(self, root='/content', verbose=True, **kwargs):
         super(VeRi, self).__init__()
         self.dataset_dir = osp.join(root, self.dataset_dir)
-        self.train_dir = osp.join(self.dataset_dir, 'image_train')
-        self.query_dir = osp.join(self.dataset_dir, 'image_query')
-        self.gallery_dir = osp.join(self.dataset_dir, 'image_test')
+        self.image_dir = osp.join(self.dataset_dir, 'image')
+        self.json_path = osp.join(self.dataset_dir, 'reid.json')
 
         self._check_before_run()
 
