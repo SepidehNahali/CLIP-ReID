@@ -69,8 +69,8 @@ TEST:
   FEAT_NORM: 'yes'
 
 DATASETS:
-#   NAMES: ('veri')
-#   ROOT_DIR: ('')
-# OUTPUT_DIR: ''
+  NAMES: ('veri')
+  ROOT_DIR: ('/content/T2I-VeRi/T2I-VeRi')
+  OUTPUT_DIR: '/content/OutputClip'
 
 # CUDA_VISIBLE_DEVICES=0 python train_clipreid.py --config_file configs/veri/vit_clipreid.yml
