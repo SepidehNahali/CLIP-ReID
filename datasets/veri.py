@@ -120,3 +120,26 @@ class VeRi(BaseImageDataset):
         print(view_container, 'view_container')
         print(count, 'samples without viewpoint annotations')
         return dataset
+
+    def _load_data(self):
+        """Load train, query, and gallery data from reid.json."""
+        with open(self.json_path, 'r') as f:
+            data = json.load(f)
+
+        train, query, gallery = [], [], []
+
+        for item in data:
+            split = item['split']
+            file_path = osp.join(self.image_dir, osp.basename(item['file_path']))
+            pid = item['id']
+            camid = -1  # Assign dummy camid if not available
+            viewid = -1  # Dummy viewid if not available
+
+            if split == 'train':
+                train.append((file_path, pid, camid, viewid))
+            elif split == 'query':
+                query.append((file_path, pid, camid, viewid))
+            elif split == 'gallery':
+                gallery.append((file_path, pid, camid, viewid))
+
+        return train, query, gallery
