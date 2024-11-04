@@ -66,7 +66,7 @@ TEST:
   FEAT_NORM: 'yes'
 
 DATASETS:
-  NAMES: ('vehicleID')
+  NAMES: ('VehicleID')
   ROOT_DIR: (''/content/T2I-VeRi/T2I-VeRi'')
 OUTPUT_DIR: '/content/output'
 
