@@ -65,9 +65,9 @@ TEST:
   NECK_FEAT: 'before'
   FEAT_NORM: 'yes'
 
-DATASETS:
-  NAMES: ('VehicleID')
-  ROOT_DIR: (''/content/T2I-VeRi/T2I-VeRi'')
-OUTPUT_DIR: '/content/output'
 
+DATASETS:
+  NAMES: ('vehicleID')  # Ensure the name matches the dataset factory
+  ROOT_DIR: '/content/T2I-VeRi/T2I-VeRi'  # Pointing to the correct directory
+OUTPUT_DIR: '/content/output'  # Adjust if necessary
 # CUDA_VISIBLE_DEVICES=3 python train_clipreid.py --config_file configs/VehicleID/vit_clipreid.yml
