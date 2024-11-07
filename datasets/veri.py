@@ -19,8 +19,6 @@ class VeRi(BaseImageDataset):
        # cameras: 20
        """
     dataset_dir = '/content/VeRi'  # This is the full path to your VeRi dataset
-
-    dataset_dir = 'VeRi'
     
     def __init__(self, root='/content', verbose=True, **kwargs):
         super(VeRi, self).__init__()
