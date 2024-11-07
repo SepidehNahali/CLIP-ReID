@@ -22,7 +22,7 @@ class VeRi(BaseImageDataset):
     
     def __init__(self, root='/content', verbose=True, **kwargs):
         super(VeRi, self).__init__()
-        self.dataset_dir = osp.join(root, 'VeRi')  # This ensures correct folder joining
+        self.dataset_dir = osp.join(root, self.dataset_dir)
         self.train_dir = osp.join(self.dataset_dir, 'image_train')
         self.query_dir = osp.join(self.dataset_dir, 'image_query')
         self.gallery_dir = osp.join(self.dataset_dir, 'image_test')
