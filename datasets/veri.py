@@ -18,7 +18,7 @@ class VeRi(BaseImageDataset):
        # images: 37778 (train) + 1678 (query) + 11579 (gallery)
        # cameras: 20
        """
-    dataset_dir = '/content/VeRi/VeRi'  # This is the full path to your VeRi dataset
+    dataset_dir = '/content/VeRi'  # This is the full path to your VeRi dataset
 
     dataset_dir = 'VeRi'
     
