@@ -67,7 +67,7 @@ TEST:
 
 
 DATASETS:
-  NAMES: ('VehicleID')  # Ensure the name matches the dataset factory
-  ROOT_DIR: '/content/T2I-VeRi/T2I-VeRi'  # Pointing to the correct directory
+  NAMES: ('veri776')  # Use the VeRi dataset
+  ROOT_DIR: ('/content/VeRi/VeRi')  # Update with your dataset directory path
 OUTPUT_DIR: '/content/output'  # Adjust if necessary
 # CUDA_VISIBLE_DEVICES=3 python train_clipreid.py --config_file configs/VehicleID/vit_clipreid.yml
