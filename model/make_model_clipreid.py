@@ -35,7 +35,11 @@ class TextEncoder(nn.Module):
         self.ln_final = clip_model.ln_final
         self.text_projection = clip_model.text_projection
         self.dtype = clip_model.dtype
-        self.attn_mask = clip_model.attn_mask  # Save the original attention mask
+        
+        # Create a default attention mask if it does not exist
+        seq_len = 77  # Standard input length for CLIP text encoder
+        self.attn_mask = torch.full((seq_len, seq_len), float("-inf"))
+        self.attn_mask = torch.triu(self.attn_mask, diagonal=1).to(torch.float32)
 
     def forward(self, prompts, tokenized_prompts):
         batch_size, prompt_length, embed_dim = prompts.size()
@@ -46,19 +50,18 @@ class TextEncoder(nn.Module):
         x = prompts + positional_embedding_resized.type(self.dtype)
         x = x.permute(1, 0, 2)  # NLD -> LND
         
-        # Resize attention mask to match the prompt length
-        if prompt_length != 77:
-            attn_mask = self.attn_mask[:prompt_length, :prompt_length].to(x.device)
-        else:
-            attn_mask = self.attn_mask.to(x.device)
-
-        x = self.transformer(x, attn_mask=attn_mask)  # Pass resized attention mask
+        # Resize the attention mask to match prompt length
+        attn_mask = self.attn_mask[:prompt_length, :prompt_length].to(x.device)
+        
+        # Pass the resized attention mask to the transformer
+        x = self.transformer(x, attn_mask=attn_mask)
         x = x.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_final(x).type(self.dtype)
         
         # Use the end-of-text (EOT) token features
         x = x[torch.arange(x.shape[0]), tokenized_prompts.argmax(dim=-1)] @ self.text_projection
         return x
+
 
 # class TextEncoder(nn.Module):
 #     def __init__(self, clip_model):
