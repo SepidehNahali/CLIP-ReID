@@ -54,7 +54,7 @@ class TextEncoder(nn.Module):
         attn_mask = self.attn_mask[:prompt_length, :prompt_length].to(x.device)
         
         # Pass the resized attention mask to the transformer
-        x = self.transformer(x, attn_mask=attn_mask)
+        x = self.transformer(x, src_mask=attn_mask)
         x = x.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_final(x).type(self.dtype)
         
