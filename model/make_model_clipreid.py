@@ -38,7 +38,9 @@ class TextEncoder(nn.Module):
         self.dtype = clip_model.dtype
 
     def forward(self, prompts, tokenized_prompts): 
-        x = prompts + self.positional_embedding.type(self.dtype) 
+        positional_embedding_resized = self.positional_embedding[:, :prompts.size(1), :]  # Resize to match prompt length
+        x = prompts + positional_embedding_resized.type(self.dtype)
+        # x = prompts + self.positional_embedding.type(self.dtype) 
         x = x.permute(1, 0, 2)  # NLD -> LND 
         x = self.transformer(x) 
         x = x.permute(1, 0, 2)  # LND -> NLD
