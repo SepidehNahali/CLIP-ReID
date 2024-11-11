@@ -27,6 +27,8 @@ def weights_init_classifier(m):
         if m.bias:
             nn.init.constant_(m.bias, 0.0)
 
+
+
 class TextEncoder(nn.Module):
     def __init__(self, clip_model):
         super().__init__()
@@ -35,55 +37,20 @@ class TextEncoder(nn.Module):
         self.ln_final = clip_model.ln_final
         self.text_projection = clip_model.text_projection
         self.dtype = clip_model.dtype
-        
-        # Create a default attention mask if it does not exist
-        seq_len = 77  # Standard input length for CLIP text encoder
-        self.attn_mask = torch.full((seq_len, seq_len), float("-inf"))
-        self.attn_mask = torch.triu(self.attn_mask, diagonal=1).to(torch.float32)
-    def forward(self, prompts, tokenized_prompts):
-        batch_size, prompt_length, embed_dim = prompts.size()
-        
-        # Resize positional embeddings to match the input prompt length
-        positional_embedding_resized = self.positional_embedding[:prompt_length, :].unsqueeze(0).expand(batch_size, prompt_length, embed_dim)
-        
+
+    def forward(self, prompts, tokenized_prompts): 
+        positional_embedding_resized = self.positional_embedding[:, :prompts.size(1), :]  # Resize to match prompt length
         x = prompts + positional_embedding_resized.type(self.dtype)
-        x = x.permute(1, 0, 2)  # NLD -> LND
-        
-        # Dynamically adjust the attention mask to match the prompt length
-        attn_mask = self.attn_mask[:prompt_length, :prompt_length].to(x.device)
-    
-        # Update this line to pass the correct mask to the transformer
-        x = self.transformer(x)
-        
+        # x = prompts + self.positional_embedding.type(self.dtype) 
+        x = x.permute(1, 0, 2)  # NLD -> LND 
+        x = self.transformer(x) 
         x = x.permute(1, 0, 2)  # LND -> NLD
-        x = self.ln_final(x).type(self.dtype)
-        
-        # Use the end-of-text (EOT) token features
-        x = x[torch.arange(x.shape[0]), tokenized_prompts.argmax(dim=-1)] @ self.text_projection
+        x = self.ln_final(x).type(self.dtype) 
+
+        # x.shape = [batch_size, n_ctx, transformer.width]
+        # take features from the eot embedding (eot_token is the highest number in each sequence)
+        x = x[torch.arange(x.shape[0]), tokenized_prompts.argmax(dim=-1)] @ self.text_projection 
         return x
-
-# class TextEncoder(nn.Module):
-#     def __init__(self, clip_model):
-#         super().__init__()
-#         self.transformer = clip_model.transformer
-#         self.positional_embedding = clip_model.positional_embedding
-#         self.ln_final = clip_model.ln_final
-#         self.text_projection = clip_model.text_projection
-#         self.dtype = clip_model.dtype
-
-#     def forward(self, prompts, tokenized_prompts): 
-#         positional_embedding_resized = self.positional_embedding[:, :prompts.size(1), :]  # Resize to match prompt length
-#         x = prompts + positional_embedding_resized.type(self.dtype)
-#         # x = prompts + self.positional_embedding.type(self.dtype) 
-#         x = x.permute(1, 0, 2)  # NLD -> LND 
-#         x = self.transformer(x) 
-#         x = x.permute(1, 0, 2)  # LND -> NLD
-#         x = self.ln_final(x).type(self.dtype) 
-
-#         # x.shape = [batch_size, n_ctx, transformer.width]
-#         # take features from the eot embedding (eot_token is the highest number in each sequence)
-#         x = x[torch.arange(x.shape[0]), tokenized_prompts.argmax(dim=-1)] @ self.text_projection 
-#         return x
 
 class build_transformer(nn.Module):
     def __init__(self, num_classes, camera_num, view_num, cfg):
@@ -223,82 +190,102 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
     model = clip.build_model(state_dict or model.state_dict(), h_resolution, w_resolution, vision_stride_size)
 
     return model
-
 class PromptLearner(nn.Module):
     def __init__(self, num_class, dataset_name, dtype, token_embedding):
         super().__init__()
+        # Modify the ctx_init string for vehicle-related prompts
         if dataset_name == "VehicleID" or dataset_name == "veri":
-            # ctx_init = "A photo of a X X X X vehicle."
             ctx_init = "A photo of a X X X X car with type X X X X. The car is in X X X X."
         else:
             ctx_init = "A photo of a X X X X person."
 
         ctx_dim = 512
-        # use given words to initialize context vectors
+        # Use the updated ctx_init string to initialize context vectors
         ctx_init = ctx_init.replace("_", " ")
-        n_ctx = 12#4
-        
-        tokenized_prompts = clip.tokenize(ctx_init).cuda() 
+        n_ctx = 12  # You can adjust this based on the number of context tokens
+
+        # Tokenize the updated prompt string
+        tokenized_prompts = clip.tokenize(ctx_init).cuda()
         with torch.no_grad():
-            embedding = token_embedding(tokenized_prompts).type(dtype) 
-        self.tokenized_prompts = tokenized_prompts  # torch.Tensor
+            embedding = token_embedding(tokenized_prompts).type(dtype)
+        self.tokenized_prompts = tokenized_prompts  # Store the tokenized prompts
 
-        n_cls_ctx = 12#4
-        cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
+        n_cls_ctx = 12  # Adjust this as needed
+        cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype)
         nn.init.normal_(cls_vectors, std=0.02)
-        self.cls_ctx = nn.Parameter(cls_vectors) 
+        self.cls_ctx = nn.Parameter(cls_vectors)  # Context for each class
 
-        
-        # These token vectors will be saved when in save_model(),
-        # but they should be ignored in load_model() as we want to use
-        # those computed using the current class names
-        # self.register_buffer("token_prefix", embedding[:, :n_ctx + 1, :])  
-        # self.register_buffer("token_suffix", embedding[:, n_ctx + 1 + n_cls_ctx: , :]) 
-
-        self.register_buffer("token_prefix", embedding[:, :3, :])  # "A photo of a"
-        self.register_buffer("token_middle", embedding[:, 3:6, :])  # "car with type"
-        self.register_buffer("token_suffix", embedding[:, -4:, :])  # "The car is in"
+        # Register token_prefix and token_suffix as buffers
+        self.register_buffer("token_prefix", embedding[:, :n_ctx + 1, :])  
+        self.register_buffer("token_suffix", embedding[:, n_ctx + 1 + n_cls_ctx:, :])
 
         self.num_class = num_class
         self.n_cls_ctx = n_cls_ctx
 
-
     def forward(self, label):
-        # Retrieve the learned context for the given class labels
-        cls_ctx = self.cls_ctx[label]  # Shape: (batch_size, n_cls_ctx, ctx_dim)
+        cls_ctx = self.cls_ctx[label]  # Get the class-specific context
         b = label.shape[0]
-
-        # Expand the prefix, middle, and suffix embeddings for the batch size
-        prefix = self.token_prefix.expand(b, -1, -1)  # Shape: (batch_size, prefix_length, ctx_dim)
-        middle = self.token_middle.expand(b, -1, -1)  # Shape: (batch_size, middle_length, ctx_dim)
-        suffix = self.token_suffix.expand(b, -1, -1)  # Shape: (batch_size, suffix_length, ctx_dim)
-
-        # Concatenate prefix, learned context, middle, and suffix to form the complete prompt
+        prefix = self.token_prefix.expand(b, -1, -1)  # Expand prefix to match batch size
+        suffix = self.token_suffix.expand(b, -1, -1)  # Expand suffix to match batch size
+            
+        # Concatenate prefix, class-specific context, and suffix
         prompts = torch.cat(
             [
-                prefix,    # Prefix: "A photo of a"
-                cls_ctx,   # Learnable context tokens (3 sets of `X X X X`)
-                middle,    # Middle fixed words: "car with type"
-                suffix,    # Suffix: "The car is in"
+                prefix,  # (b, n_ctx, dim)
+                cls_ctx,  # (b, n_cls_ctx, dim)
+                suffix,  # (b, remaining, dim)
             ],
-            dim=1
-        )  # Shape: (batch_size, prompt_length, ctx_dim)
+            dim=1,
+        )
 
         return prompts
-    # def forward(self, label):
-    #     cls_ctx = self.cls_ctx[label] 
-    #     b = label.shape[0]
-    #     prefix = self.token_prefix.expand(b, -1, -1) 
-    #     suffix = self.token_suffix.expand(b, -1, -1) 
-            
-    #     prompts = torch.cat(
-    #         [
-    #             prefix,  # (n_cls, 1, dim)
-    #             cls_ctx,     # (n_cls, n_ctx, dim)
-    #             suffix,  # (n_cls, *, dim)
-    #         ],
-    #         dim=1,
-    #     ) 
 
-    #     return prompts 
+# class PromptLearner(nn.Module):
+#     def __init__(self, num_class, dataset_name, dtype, token_embedding):
+#         super().__init__()
+#         if dataset_name == "VehicleID" or dataset_name == "veri":
+#             # ctx_init = "A photo of a X X X X vehicle."
+#             ctx_init = "A photo of a X X X X car with type X X X X. The car is in X X X X."
+#         else:
+#             ctx_init = "A photo of a X X X X person."
+
+#         ctx_dim = 512
+#         # use given words to initialize context vectors
+#         ctx_init = ctx_init.replace("_", " ")
+#         n_ctx = 4
+        
+#         tokenized_prompts = clip.tokenize(ctx_init).cuda() 
+#         with torch.no_grad():
+#             embedding = token_embedding(tokenized_prompts).type(dtype) 
+#         self.tokenized_prompts = tokenized_prompts  # torch.Tensor
+
+#         n_cls_ctx = 4
+#         cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
+#         nn.init.normal_(cls_vectors, std=0.02)
+#         self.cls_ctx = nn.Parameter(cls_vectors) 
+
+        
+#         # These token vectors will be saved when in save_model(),
+#         # but they should be ignored in load_model() as we want to use
+#         # those computed using the current class names
+#         self.register_buffer("token_prefix", embedding[:, :n_ctx + 1, :])  
+#         self.register_buffer("token_suffix", embedding[:, n_ctx + 1 + n_cls_ctx: , :]) 
+#         self.num_class = num_class
+#         self.n_cls_ctx = n_cls_ctx
+
+#     def forward(self, label):
+#         cls_ctx = self.cls_ctx[label] 
+#         b = label.shape[0]
+#         prefix = self.token_prefix.expand(b, -1, -1) 
+#         suffix = self.token_suffix.expand(b, -1, -1) 
+#         prompts = torch.cat(
+#             [
+#                 prefix,  # (n_cls, 1, dim)
+#                 cls_ctx,     # (n_cls, n_ctx, dim)
+#                 suffix,  # (n_cls, *, dim)
+#             ],
+#             dim=1,
+#         ) 
+
+#         return prompts 
 
