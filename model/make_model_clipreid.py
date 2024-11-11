@@ -37,19 +37,36 @@ class TextEncoder(nn.Module):
         self.text_projection = clip_model.text_projection
         self.dtype = clip_model.dtype
 
-    def forward(self, prompts, tokenized_prompts): 
-        positional_embedding_resized = self.positional_embedding[:, :prompts.size(1), :]  # Resize to match prompt length
-        x = prompts + positional_embedding_resized.type(self.dtype)
-        # x = prompts + self.positional_embedding.type(self.dtype) 
-        x = x.permute(1, 0, 2)  # NLD -> LND 
-        x = self.transformer(x) 
-        x = x.permute(1, 0, 2)  # LND -> NLD
-        x = self.ln_final(x).type(self.dtype) 
 
-        # x.shape = [batch_size, n_ctx, transformer.width]
-        # take features from the eot embedding (eot_token is the highest number in each sequence)
-        x = x[torch.arange(x.shape[0]), tokenized_prompts.argmax(dim=-1)] @ self.text_projection 
+    def forward(self, prompts, tokenized_prompts):
+        # Ensure positional embedding is correctly expanded to match the batch size and token length
+        batch_size, prompt_length, embed_dim = prompts.size()
+        
+        # Expand positional embedding from (num_tokens, embedding_dim) to (batch_size, num_tokens, embedding_dim)
+        positional_embedding_resized = self.positional_embedding[:prompt_length, :].unsqueeze(0).expand(batch_size, prompt_length, embed_dim)
+        
+        x = prompts + positional_embedding_resized.type(self.dtype)
+        x = x.permute(1, 0, 2)  # NLD -> LND
+        x = self.transformer(x)
+        x = x.permute(1, 0, 2)  # LND -> NLD
+        x = self.ln_final(x).type(self.dtype)
+
+        # Take features from the end-of-text (EOT) embedding
+        x = x[torch.arange(x.shape[0]), tokenized_prompts.argmax(dim=-1)] @ self.text_projection
         return x
+    # def forward(self, prompts, tokenized_prompts): 
+    #     positional_embedding_resized = self.positional_embedding[:, :prompts.size(1), :]  # Resize to match prompt length
+    #     x = prompts + positional_embedding_resized.type(self.dtype)
+    #     # x = prompts + self.positional_embedding.type(self.dtype) 
+    #     x = x.permute(1, 0, 2)  # NLD -> LND 
+    #     x = self.transformer(x) 
+    #     x = x.permute(1, 0, 2)  # LND -> NLD
+    #     x = self.ln_final(x).type(self.dtype) 
+
+    #     # x.shape = [batch_size, n_ctx, transformer.width]
+    #     # take features from the eot embedding (eot_token is the highest number in each sequence)
+    #     x = x[torch.arange(x.shape[0]), tokenized_prompts.argmax(dim=-1)] @ self.text_projection 
+    #     return x
 
 class build_transformer(nn.Module):
     def __init__(self, num_classes, camera_num, view_num, cfg):
