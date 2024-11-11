@@ -53,7 +53,7 @@ class TextEncoder(nn.Module):
         attn_mask = self.attn_mask[:prompt_length, :prompt_length].to(x.device)
     
         # Update this line to pass the correct mask to the transformer
-        x = self.transformer(x, attn_mask=attn_mask)
+        x = self.transformer(x)
         
         x = x.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_final(x).type(self.dtype)
