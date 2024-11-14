@@ -180,7 +180,11 @@ class ResidualAttentionBlock(nn.Module):
         self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device) if self.attn_mask is not None else None
         seq_length = x.size(0)  # Get the actual sequence length
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ CHANGED!!!!!!!
-        dynamic_attn_mask = self.attn_mask[:seq_length, :seq_length]  # Slice the mask dynamically
+        if self.attn_mask is not None:
+            dynamic_attn_mask = self.attn_mask[:seq_length, :seq_length]
+        else:
+            dynamic_attn_mask = None
+
         return self.attn(x, x, x, need_weights=False, attn_mask=dynamic_attn_mask)[0]
 
         # return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
