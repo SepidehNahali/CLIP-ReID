@@ -195,7 +195,8 @@ class PromptLearner(nn.Module):
     def __init__(self, num_class, dataset_name, dtype, token_embedding):
         super().__init__()
         if dataset_name == "VehicleID" or dataset_name == "veri":
-            ctx_init = "X X X X"
+            ctx_init = "X X X X" + " " * (77 - len(_tokenizer.encode("Description: XXXX.")))
+
         else:
             ctx_init = "A photo of a X X X X person."
 
