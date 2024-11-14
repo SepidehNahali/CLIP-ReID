@@ -231,7 +231,7 @@ class PromptLearner(nn.Module):
         prompts = torch.cat(
             [
                 prefix,  # (n_cls, 1, dim)
-                cls_ctx     # (n_cls, n_ctx, dim)
+                cls_ctx,     # (n_cls, n_ctx, dim)
                 suffix,  # (n_cls, *, dim)
             ],
             dim=1,
