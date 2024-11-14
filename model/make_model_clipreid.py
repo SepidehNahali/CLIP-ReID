@@ -39,7 +39,7 @@ class TextEncoder(nn.Module):
         self.dtype = clip_model.dtype
 
     def forward(self, prompts, tokenized_prompts): 
-        positional_embedding_resized = self.positional_embedding[:, :prompts.size(1), :]  # Resize to match prompt length
+        positional_embedding_resized = self.positional_embedding[:, :prompts.size(1), :] if self.positional_embedding.dim() == 3 else self.positional_embedding[:prompts.size(1), :].unsqueeze(0)
         x = prompts + positional_embedding_resized.type(self.dtype)
         # x = prompts + self.positional_embedding.type(self.dtype) 
         x = x.permute(1, 0, 2)  # NLD -> LND 
@@ -255,6 +255,7 @@ class PromptLearner(nn.Module):
         self.n_ctx_2 = 4  # Learnable tokens in the second segment
         self.n_ctx_3 = 4  # Learnable tokens in the third segment
         self.n_cls_ctx = 4  # For class-specific tokens
+        #n_ctx = n_ctx_1 + n_cls_ctx_2 + n_ctx_3
 
         tokenized_prompts = clip.tokenize(ctx_init).cuda() 
         with torch.no_grad():
