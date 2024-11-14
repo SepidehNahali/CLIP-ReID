@@ -190,62 +190,12 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
     model = clip.build_model(state_dict or model.state_dict(), h_resolution, w_resolution, vision_stride_size)
 
     return model
-class PromptLearner(nn.Module):
-    def __init__(self, num_class, dataset_name, dtype, token_embedding):
-        super().__init__()
-        # Modify the ctx_init string for vehicle-related prompts
-        if dataset_name == "VehicleID" or dataset_name == "veri":
-            ctx_init = "A photo of a X X X X car with type X X X X. The car is in X X X X."
-        else:
-            ctx_init = "A photo of a X X X X person."
-
-        ctx_dim = 512
-        # Use the updated ctx_init string to initialize context vectors
-        ctx_init = ctx_init.replace("_", " ")
-        n_ctx = 12  # You can adjust this based on the number of context tokens
-
-        # Tokenize the updated prompt string
-        tokenized_prompts = clip.tokenize(ctx_init).cuda()
-        with torch.no_grad():
-            embedding = token_embedding(tokenized_prompts).type(dtype)
-        self.tokenized_prompts = tokenized_prompts  # Store the tokenized prompts
-
-        n_cls_ctx = 12  # Adjust this as needed
-        cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype)
-        nn.init.normal_(cls_vectors, std=0.02)
-        self.cls_ctx = nn.Parameter(cls_vectors)  # Context for each class
-
-        # Register token_prefix and token_suffix as buffers
-        self.register_buffer("token_prefix", embedding[:, :n_ctx + 1, :])  
-        self.register_buffer("token_suffix", embedding[:, n_ctx + 1 + n_cls_ctx:, :])
-
-        self.num_class = num_class
-        self.n_cls_ctx = n_cls_ctx
-
-    def forward(self, label):
-        cls_ctx = self.cls_ctx[label]  # Get the class-specific context
-        b = label.shape[0]
-        prefix = self.token_prefix.expand(b, -1, -1)  # Expand prefix to match batch size
-        suffix = self.token_suffix.expand(b, -1, -1)  # Expand suffix to match batch size
-            
-        # Concatenate prefix, class-specific context, and suffix
-        prompts = torch.cat(
-            [
-                prefix,  # (b, n_ctx, dim)
-                cls_ctx,  # (b, n_cls_ctx, dim)
-                suffix,  # (b, remaining, dim)
-            ],
-            dim=1,
-        )
-
-        return prompts
 
 # class PromptLearner(nn.Module):
 #     def __init__(self, num_class, dataset_name, dtype, token_embedding):
 #         super().__init__()
 #         if dataset_name == "VehicleID" or dataset_name == "veri":
-#             # ctx_init = "A photo of a X X X X vehicle."
-#             ctx_init = "A photo of a X X X X car with type X X X X. The car is in X X X X."
+#             ctx_init = "A photo of a X X X X vehicle."
 #         else:
 #             ctx_init = "A photo of a X X X X person."
 
@@ -288,4 +238,75 @@ class PromptLearner(nn.Module):
 #         ) 
 
 #         return prompts 
+class PromptLearner(nn.Module):
+    def __init__(self, num_class, dataset_name, dtype, token_embedding):
+        super().__init__()
+        if dataset_name == "VehicleID" or dataset_name == "veri":
+            ctx_init = "A photo of a X X X X car with type X X X X. The car is in X X X X."
+        else:
+            ctx_init = "A photo of a X X X X person."
+
+        ctx_dim = 512
+        # use given words to initialize context vectors
+        ctx_init = ctx_init.replace("_", " ")
+        
+        # Define the number of learnable context tokens for each part
+        n_ctx_1 = 4  # Learnable tokens in the first segment
+        n_ctx_2 = 4  # Learnable tokens in the second segment
+        n_ctx_3 = 4  # Learnable tokens in the third segment
+         
+        tokenized_prompts = clip.tokenize(ctx_init).cuda() 
+        with torch.no_grad():
+            embedding = token_embedding(tokenized_prompts).type(dtype) 
+        self.tokenized_prompts = tokenized_prompts  # torch.Tensor
+
+        
+        # These token vectors will be saved when in save_model(),
+        # but they should be ignored in load_model() as we want to use
+        # those computed using the current class names
+        # Define prefix and suffixes
+        self.register_buffer("prefix", embedding[:, :4, :])  # "A photo of a"
+        self.register_buffer("first_suffix", embedding[:, 4 + n_ctx_1: 4 + n_ctx_1 + 3, :])  # "car with type"
+        self.register_buffer("second_suffix", embedding[:, 4 + n_ctx_1 + 3 + n_ctx_2: 4 + n_ctx_1 + 3 + n_ctx_2 + 4, :])  # "The car is in"
+        self.register_buffer("final_suffix", embedding[:, -1:, :])  # "."
+       
+        n_cls_ctx = 4
+        cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
+        nn.init.normal_(cls_vectors, std=0.02)
+        self.cls_ctx = nn.Parameter(cls_vectors) 
+
+        
+  
+        
+        self.num_class = num_class
+        self.n_cls_ctx = n_cls_ctx
+
+
+    def forward(self, label):
+        # Retrieve the class-specific learnable tokens
+        cls_ctx = self.cls_ctx[label]  # (Batch, n_cls_ctx, dim)
+        
+        b = label.shape[0]
+        
+        # Generate learnable context segments
+        ctx_vectors_1 = self.prefix.expand(b, -1, -1)  # Fixed prefix
+        ctx_vectors_2 = self.first_suffix.expand(b, -1, -1)  # Suffix after first learnable tokens
+        ctx_vectors_3 = self.second_suffix.expand(b, -1, -1)  # Suffix after second learnable tokens
+        ctx_vectors_4 = self.final_suffix.expand(b, -1, -1)  # Final suffix
+        
+        # Concatenate all components to form the complete prompt
+        prompts = torch.cat(
+            [
+                ctx_vectors_1,  # "A photo of a"
+                cls_ctx[:, :self.n_ctx_1],  # First learnable context tokens
+                ctx_vectors_2,  # "car with type"
+                cls_ctx[:, self.n_ctx_1:self.n_ctx_1 + self.n_ctx_2],  # Second learnable context tokens
+                ctx_vectors_3,  # "The car is in"
+                cls_ctx[:, self.n_ctx_1 + self.n_ctx_2:],  # Third learnable context tokens
+                ctx_vectors_4,  # "."
+            ],
+            dim=1,
+        )
+        return prompts
+  
 
