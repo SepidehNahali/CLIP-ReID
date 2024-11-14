@@ -179,6 +179,8 @@ class ResidualAttentionBlock(nn.Module):
     def attention(self, x: torch.Tensor):
         self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device) if self.attn_mask is not None else None
         seq_length = x.size(0)  # Get the actual sequence length
+        print(self.attn_mask)
+        print(seq_length)
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ CHANGED!!!!!!!
         if self.attn_mask is not None:
             dynamic_attn_mask = self.attn_mask[:seq_length, :seq_length]
