@@ -241,6 +241,12 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
 class PromptLearner(nn.Module):
     def __init__(self, num_class, dataset_name, dtype, token_embedding):
         super().__init__()
+
+        # Define these parameters with appropriate values
+        self.n_ctx_1 = 4  # Number of tokens for the first context (adjust based on your needs)
+        self.n_ctx_2 = 4  # Number of tokens for the second context (adjust based on your needs)
+        self.n_cls_ctx = self.n_ctx_1 + self.n_ctx_2 + 4  # Total tokens for class learnable context
+
         if dataset_name == "VehicleID" or dataset_name == "veri":
             ctx_init = "A photo of a X X X X car with type X X X X. The car is in X X X X."
         else:
