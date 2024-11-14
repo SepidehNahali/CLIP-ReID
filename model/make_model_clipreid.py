@@ -248,7 +248,9 @@ class PromptLearner(nn.Module):
         self.n_cls_ctx = self.n_ctx_1 + self.n_ctx_2 + 4  # Total tokens for class learnable context
 
         if dataset_name == "VehicleID" or dataset_name == "veri":
-            ctx_init = "A photo of a X X X X car with type X X X X. The car is in X X X X."
+            # ctx_init = "A photo of a X X X X car with type X X X X. The car is in X X X X."
+            ctx_init = "A photo of a X X X X car with type X X X X. The car is in X X X X." + " " * (77 - len(tokenizer(ctx_init)['input_ids']))
+
         else:
             ctx_init = "A photo of a X X X X person."
 
