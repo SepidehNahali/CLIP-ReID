@@ -180,12 +180,10 @@ class ResidualAttentionBlock(nn.Module):
         self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device) if self.attn_mask is not None else None
         seq_length = x.size(0)  # Get the actual sequence length
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ CHANGED!!!!!!!
-        # dynamic_attn_mask = self.attn_mask[:seq_length, :seq_length]
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ CHANGED!!!!!!!
+        dynamic_attn_mask = self.attn_mask[:seq_length, :seq_length]  # Slice the mask dynamically
+        return self.attn(x, x, x, need_weights=False, attn_mask=dynamic_attn_mask)[0]
 
-        # Pass the adjusted attention mask
-        # return self.attn(x, x, x, need_weights=False, attn_mask=dynamic_attn_mask)[0]
-        return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
+        # return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ CHANGED!!!!!!!
     def forward(self, x: torch.Tensor):
         x = x + self.attention(self.ln_1(x))
