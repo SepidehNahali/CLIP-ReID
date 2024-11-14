@@ -179,20 +179,21 @@ class ResidualAttentionBlock(nn.Module):
     def attention(self, x: torch.Tensor):
         self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device) if self.attn_mask is not None else None
         seq_length = x.size(0)  # Get the actual sequence length
-        print(self.attn_mask)
-        print(seq_length)
-        print(f"Input Tensor Shape: {input_tensor.shape}")  # e.g., [batch_size, seq_length, dim]
-        print(f"Attention Mask Shape: {self.attn_mask.shape}")  # Should be [seq_length, seq_length]
 
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ CHANGED!!!!!!!
-        if self.attn_mask is not None:
-            dynamic_attn_mask = self.attn_mask[:seq_length, :seq_length]
-        else:
-            dynamic_attn_mask = None
+        # print(self.attn_mask)
+        # print(seq_length)
+        # print(f"Input Tensor Shape: {input_tensor.shape}")  # e.g., [batch_size, seq_length, dim]
+        # print(f"Attention Mask Shape: {self.attn_mask.shape}")  # Should be [seq_length, seq_length]
 
-        return self.attn(x, x, x, need_weights=False, attn_mask=dynamic_attn_mask)[0]
+        # if self.attn_mask is not None:
+        #     dynamic_attn_mask = self.attn_mask[:seq_length, :seq_length]
+        # else:
+        #     dynamic_attn_mask = None
 
-        # return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
+        # return self.attn(x, x, x, need_weights=False, attn_mask=dynamic_attn_mask)[0]
+
+        return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ CHANGED!!!!!!!
     def forward(self, x: torch.Tensor):
         x = x + self.attention(self.ln_1(x))
