@@ -433,7 +433,7 @@ def build_model(state_dict: dict, h_resolution: int, w_resolution: int, vision_s
         image_resolution = output_width * 32
 
     embed_dim = state_dict["text_projection"].shape[1]
-    context_length = state_dict["positional_embedding"].shape[0] #77 (77,512)
+    context_length = 16#state_dict["positional_embedding"].shape[0] #77 (77,512)
     vocab_size = state_dict["token_embedding.weight"].shape[0]
     transformer_width = state_dict["ln_final.weight"].shape[0]
     transformer_heads = transformer_width // 64
