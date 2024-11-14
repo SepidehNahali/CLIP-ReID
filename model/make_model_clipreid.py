@@ -250,11 +250,12 @@ class PromptLearner(nn.Module):
         # use given words to initialize context vectors
         ctx_init = ctx_init.replace("_", " ")
         
-        # Define the number of learnable context tokens for each part
-        n_ctx_1 = 4  # Learnable tokens in the first segment
-        n_ctx_2 = 4  # Learnable tokens in the second segment
-        n_ctx_3 = 4  # Learnable tokens in the third segment
-         
+        # Define and initialize the number of learnable context tokens for each part
+        self.n_ctx_1 = 4  # Learnable tokens in the first segment
+        self.n_ctx_2 = 4  # Learnable tokens in the second segment
+        self.n_ctx_3 = 4  # Learnable tokens in the third segment
+        self.n_cls_ctx = 4  # For class-specific tokens
+
         tokenized_prompts = clip.tokenize(ctx_init).cuda() 
         with torch.no_grad():
             embedding = token_embedding(tokenized_prompts).type(dtype) 
@@ -266,17 +267,15 @@ class PromptLearner(nn.Module):
         # those computed using the current class names
         # Define prefix and suffixes
         self.register_buffer("prefix", embedding[:, :4, :])  # "A photo of a"
-        self.register_buffer("first_suffix", embedding[:, 4 + n_ctx_1: 4 + n_ctx_1 + 3, :])  # "car with type"
-        self.register_buffer("second_suffix", embedding[:, 4 + n_ctx_1 + 3 + n_ctx_2: 4 + n_ctx_1 + 3 + n_ctx_2 + 4, :])  # "The car is in"
+        self.register_buffer("first_suffix", embedding[:, 4 + self.n_ctx_1: 4 + self.n_ctx_1 + 3, :])  # "car with type"
+        self.register_buffer("second_suffix", embedding[:, 4 + self.n_ctx_1 + 3 + self.n_ctx_2: 4 + self.n_ctx_1 + 3 + self.n_ctx_2 + 4, :])  # "The car is in"
         self.register_buffer("final_suffix", embedding[:, -1:, :])  # "."
        
         n_cls_ctx = 4
-        cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
+        cls_vectors = torch.empty(num_class, self.n_cls_ctx, ctx_dim, dtype=dtype) 
         nn.init.normal_(cls_vectors, std=0.02)
         self.cls_ctx = nn.Parameter(cls_vectors) 
 
-        
-  
         
         self.num_class = num_class
         self.n_cls_ctx = n_cls_ctx
