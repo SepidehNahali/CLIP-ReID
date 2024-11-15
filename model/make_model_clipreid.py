@@ -315,11 +315,11 @@ class PromptLearner(nn.Module):
             padding = torch.zeros((prompts.size(0), pad_length, prompts.size(2)), dtype=prompts.dtype).cuda()
             prompts = torch.cat([prompts, padding], dim=1)
 
-        print(f"Prefix shape: {ctx_vectors_1.shape}")
-        print(f"Cls_ctx shape: {cls_ctx.shape}")
-        print(f"Suffix1 shape: {ctx_vectors_2.shape}")
-        print(f"Suffix2 shape: {ctx_vectors_3.shape}")
-        print(f"Prompts shape: {prompts.shape}")
+        # print(f"Prefix shape: {ctx_vectors_1.shape}")
+        # print(f"Cls_ctx shape: {cls_ctx.shape}")
+        # print(f"Suffix1 shape: {ctx_vectors_2.shape}")
+        # print(f"Suffix2 shape: {ctx_vectors_3.shape}")
+        # print(f"Prompts shape: {prompts.shape}")
 
         return prompts
 
