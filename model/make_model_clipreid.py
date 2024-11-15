@@ -311,9 +311,10 @@ class PromptLearner(nn.Module):
             dim=1,
         )
         
-        print(f"Prefix shape: {prefix.shape}")
+        print(f"Prefix shape: {ctx_vectors_1.shape}")
         print(f"Cls_ctx shape: {cls_ctx.shape}")
-        print(f"Suffix shape: {suffix.shape}")
+        print(f"Suffix1 shape: {ctx_vectors_2.shape}")
+        print(f"Suffix2 shape: {ctx_vectors_3.shape}")
         print(f"Prompts shape: {prompts.shape}")
 
         return prompts
