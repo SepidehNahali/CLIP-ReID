@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="ReID Baseline Training")
     parser.add_argument(
-        "--config_file", default="configs/person/vit_clipreid.yml", help="path to config file", type=str
+        "--config_file", default="configs/person/vit_clipreid.yml", help="path to config file", type=str)
     
 ##################################################################################################################### CHANGED!!
     parser.add_argument("--run_stage1", action="store_true", help="Run Stage 1 Training")
