@@ -28,7 +28,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="ReID Baseline Training")
     parser.add_argument(
         "--config_file", default="configs/person/vit_clipreid.yml", help="path to config file", type=str
-    )
+    
+##################################################################################################################### CHANGED!!
+    parser.add_argument("--run_stage1", action="store_true", help="Run Stage 1 Training")
+    parser.add_argument("--run_stage2", action="store_true", help="Run Stage 2 Training")
+    parser.add_argument("--stage1_checkpoint", default="stage1_checkpoint.pth", type=str,help="Path to save/load Stage 1 checkpoint")
+        
+##################################################################################################################### CHANGED!!
 
     parser.add_argument("opts", help="Modify config options using the command-line", default=None,
                         nargs=argparse.REMAINDER)
@@ -67,21 +73,55 @@ if __name__ == '__main__':
 
     model = make_model(cfg, num_class=num_classes, camera_num=camera_num, view_num = view_num)
 
+##############################################################################################################Changed!
+    # Run Stage 1
+    if args.run_stage1:
+        logger.info("Starting Stage 1 Training...")
+        optimizer_1stage = make_optimizer_1stage(cfg, model)
+        scheduler_1stage = create_scheduler(
+            optimizer_1stage,
+            num_epochs=cfg.SOLVER.STAGE1.MAX_EPOCHS,
+            lr_min=cfg.SOLVER.STAGE1.LR_MIN,
+            warmup_lr_init=cfg.SOLVER.STAGE1.WARMUP_LR_INIT,
+            warmup_t=cfg.SOLVER.STAGE1.WARMUP_EPOCHS,
+            noise_range=None
+        )
+        do_train_stage1(cfg, model, train_loader_stage1, optimizer_1stage, scheduler_1stage, args.local_rank)
+
+        # Save Stage 1 Checkpoint
+        checkpoint_path = os.path.join(cfg.OUTPUT_DIR, args.stage1_checkpoint)
+        torch.save(model.state_dict(), checkpoint_path)
+        logger.info(f"Stage 1 Checkpoint saved at {checkpoint_path}")
+
+    # Run Stage 2
+    if args.run_stage2:
+        logger.info("Starting Stage 2 Training...")
+        # Load Stage 1 Checkpoint
+        checkpoint_path = os.path.join(cfg.OUTPUT_DIR, args.stage1_checkpoint)
+        if os.path.exists(checkpoint_path):
+            model.load_state_dict(torch.load(checkpoint_path, map_location="cuda"))
+            logger.info(f"Loaded Stage 1 Checkpoint from {checkpoint_path}")
+        else:
+            logger.error(f"Stage 1 checkpoint not found at {checkpoint_path}. Exiting...")
+            exit(1)
+
+    # optimizer_1stage = make_optimizer_1stage(cfg, model)
+    # scheduler_1stage = create_scheduler(optimizer_1stage, num_epochs = cfg.SOLVER.STAGE1.MAX_EPOCHS, lr_min = cfg.SOLVER.STAGE1.LR_MIN, \
+    #                     warmup_lr_init = cfg.SOLVER.STAGE1.WARMUP_LR_INIT, warmup_t = cfg.SOLVER.STAGE1.WARMUP_EPOCHS, noise_range = None)
+
+    # do_train_stage1(
+    #     cfg,
+    #     model,
+    #     train_loader_stage1,
+    #     optimizer_1stage,
+    #     scheduler_1stage,
+    #     args.local_rank
+    # )
+
+    ######################################################################################################Changed!
+
+    
     loss_func, center_criterion = make_loss(cfg, num_classes=num_classes)
-
-    optimizer_1stage = make_optimizer_1stage(cfg, model)
-    scheduler_1stage = create_scheduler(optimizer_1stage, num_epochs = cfg.SOLVER.STAGE1.MAX_EPOCHS, lr_min = cfg.SOLVER.STAGE1.LR_MIN, \
-                        warmup_lr_init = cfg.SOLVER.STAGE1.WARMUP_LR_INIT, warmup_t = cfg.SOLVER.STAGE1.WARMUP_EPOCHS, noise_range = None)
-
-    do_train_stage1(
-        cfg,
-        model,
-        train_loader_stage1,
-        optimizer_1stage,
-        scheduler_1stage,
-        args.local_rank
-    )
-
     optimizer_2stage, optimizer_center_2stage = make_optimizer_2stage(cfg, model, center_criterion)
     scheduler_2stage = WarmupMultiStepLR(optimizer_2stage, cfg.SOLVER.STAGE2.STEPS, cfg.SOLVER.STAGE2.GAMMA, cfg.SOLVER.STAGE2.WARMUP_FACTOR,
                                   cfg.SOLVER.STAGE2.WARMUP_ITERS, cfg.SOLVER.STAGE2.WARMUP_METHOD)
