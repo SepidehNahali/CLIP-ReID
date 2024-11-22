@@ -50,8 +50,11 @@ if __name__ == '__main__':
 
     if cfg.MODEL.DIST_TRAIN:
         torch.cuda.set_device(args.local_rank)
+###############################################################################################################changed!
+    #output_dir = cfg.OUTPUT_DIR
+    output_dir = "/kaggle/input/checkpoints/stage1_checkpoint.pth"
+###############################################################################################################changed!
 
-    output_dir = cfg.OUTPUT_DIR
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
