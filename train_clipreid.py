@@ -121,20 +121,20 @@ if __name__ == '__main__':
     ######################################################################################################Changed!
 
     
-    loss_func, center_criterion = make_loss(cfg, num_classes=num_classes)
-    optimizer_2stage, optimizer_center_2stage = make_optimizer_2stage(cfg, model, center_criterion)
-    scheduler_2stage = WarmupMultiStepLR(optimizer_2stage, cfg.SOLVER.STAGE2.STEPS, cfg.SOLVER.STAGE2.GAMMA, cfg.SOLVER.STAGE2.WARMUP_FACTOR,
-                                  cfg.SOLVER.STAGE2.WARMUP_ITERS, cfg.SOLVER.STAGE2.WARMUP_METHOD)
+        loss_func, center_criterion = make_loss(cfg, num_classes=num_classes)
+        optimizer_2stage, optimizer_center_2stage = make_optimizer_2stage(cfg, model, center_criterion)
+        scheduler_2stage = WarmupMultiStepLR(optimizer_2stage, cfg.SOLVER.STAGE2.STEPS, cfg.SOLVER.STAGE2.GAMMA, cfg.SOLVER.STAGE2.WARMUP_FACTOR,
+                                      cfg.SOLVER.STAGE2.WARMUP_ITERS, cfg.SOLVER.STAGE2.WARMUP_METHOD)
 
-    do_train_stage2(
-        cfg,
-        model,
-        center_criterion,
-        train_loader_stage2,
-        val_loader,
-        optimizer_2stage,
-        optimizer_center_2stage,
-        scheduler_2stage,
-        loss_func,
-        num_query, args.local_rank
-    )
+        do_train_stage2(
+            cfg,
+            model,
+            center_criterion,
+            train_loader_stage2,
+            val_loader,
+            optimizer_2stage,
+            optimizer_center_2stage,
+            scheduler_2stage,
+            loss_func,
+            num_query, args.local_rank
+        )
