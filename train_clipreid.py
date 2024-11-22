@@ -52,7 +52,7 @@ if __name__ == '__main__':
         torch.cuda.set_device(args.local_rank)
 ###############################################################################################################changed!
     #output_dir = cfg.OUTPUT_DIR
-    output_dir = "/kaggle/input/checkpoints/stage1_checkpoint.pth"
+    output_dir = "/kaggle/working/output/"
 ###############################################################################################################changed!
 
     if output_dir and not os.path.exists(output_dir):
