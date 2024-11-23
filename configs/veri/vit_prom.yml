@@ -71,6 +71,6 @@ TEST:
 DATASETS:
   NAMES: ('veri')
   ROOT_DIR: ('/kaggle/input/veridataset/VeRi')  # Update with your dataset directory path
-OUTPUT_DIR: '/output'  # Adjust if necessary
+OUTPUT_DIR: '/kaggle/working/output'  # Adjust if necessary
 
 # CUDA_VISIBLE_DEVICES=0 python train_clipreid.py --config_file configs/veri/vit_clipreid.yml
