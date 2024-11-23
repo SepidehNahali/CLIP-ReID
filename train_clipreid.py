@@ -48,86 +48,86 @@ if __name__ == '__main__':
 
     set_seed(cfg.SOLVER.SEED)
 
-    if cfg.MODEL.DIST_TRAIN:
-        torch.cuda.set_device(args.local_rank)
-###############################################################################################################changed!
-    #output_dir = cfg.OUTPUT_DIR
-    output_dir = "/kaggle/working/output/"
-###############################################################################################################changed!
+#     if cfg.MODEL.DIST_TRAIN:
+#         torch.cuda.set_device(args.local_rank)
+# ###############################################################################################################changed!
+#     #output_dir = cfg.OUTPUT_DIR
+#     output_dir = "/kaggle/working/output/"
+# ###############################################################################################################changed!
 
-    if output_dir and not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+#     if output_dir and not os.path.exists(output_dir):
+#         os.makedirs(output_dir)
 
-    logger = setup_logger("transreid", output_dir, if_train=True)
-    logger.info("Saving model in the path :{}".format(cfg.OUTPUT_DIR))
-    logger.info(args)
+#     logger = setup_logger("transreid", output_dir, if_train=True)
+#     logger.info("Saving model in the path :{}".format(cfg.OUTPUT_DIR))
+#     logger.info(args)
 
-    if args.config_file != "":
-        logger.info("Loaded configuration file {}".format(args.config_file))
-        with open(args.config_file, 'r') as cf:
-            config_str = "\n" + cf.read()
-            logger.info(config_str)
-    logger.info("Running with config:\n{}".format(cfg))
+#     if args.config_file != "":
+#         logger.info("Loaded configuration file {}".format(args.config_file))
+#         with open(args.config_file, 'r') as cf:
+#             config_str = "\n" + cf.read()
+#             logger.info(config_str)
+#     logger.info("Running with config:\n{}".format(cfg))
 
-    if cfg.MODEL.DIST_TRAIN:
-        torch.distributed.init_process_group(backend='nccl', init_method='env://')
+#     if cfg.MODEL.DIST_TRAIN:
+#         torch.distributed.init_process_group(backend='nccl', init_method='env://')
 
-    train_loader_stage2, train_loader_stage1, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
+#     train_loader_stage2, train_loader_stage1, val_loader, num_query, num_classes, camera_num, view_num = make_dataloader(cfg)
 
-    model = make_model(cfg, num_class=num_classes, camera_num=camera_num, view_num = view_num)
+#     model = make_model(cfg, num_class=num_classes, camera_num=camera_num, view_num = view_num)
 
-##############################################################################################################Changed!
-    # Run Stage 1
-    if args.run_stage1:
-        logger.info("Starting Stage 1 Training...")
-        optimizer_1stage = make_optimizer_1stage(cfg, model)
-        scheduler_1stage = create_scheduler(
-            optimizer_1stage,
-            num_epochs=cfg.SOLVER.STAGE1.MAX_EPOCHS,
-            lr_min=cfg.SOLVER.STAGE1.LR_MIN,
-            warmup_lr_init=cfg.SOLVER.STAGE1.WARMUP_LR_INIT,
-            warmup_t=cfg.SOLVER.STAGE1.WARMUP_EPOCHS,
-            noise_range=None
-        )
-        do_train_stage1(cfg, model, train_loader_stage1, optimizer_1stage, scheduler_1stage, args.local_rank)
+# ##############################################################################################################Changed!
+#     # Run Stage 1
+#     if args.run_stage1:
+#         logger.info("Starting Stage 1 Training...")
+#         optimizer_1stage = make_optimizer_1stage(cfg, model)
+#         scheduler_1stage = create_scheduler(
+#             optimizer_1stage,
+#             num_epochs=cfg.SOLVER.STAGE1.MAX_EPOCHS,
+#             lr_min=cfg.SOLVER.STAGE1.LR_MIN,
+#             warmup_lr_init=cfg.SOLVER.STAGE1.WARMUP_LR_INIT,
+#             warmup_t=cfg.SOLVER.STAGE1.WARMUP_EPOCHS,
+#             noise_range=None
+#         )
+#         do_train_stage1(cfg, model, train_loader_stage1, optimizer_1stage, scheduler_1stage, args.local_rank)
 
-        # Save Stage 1 Checkpoint
-        checkpoint_path = os.path.join(cfg.OUTPUT_DIR, args.stage1_checkpoint)
-        torch.save(model.state_dict(), checkpoint_path)
-        logger.info(f"Stage 1 Checkpoint saved at {checkpoint_path}")
+#         # Save Stage 1 Checkpoint
+#         checkpoint_path = os.path.join(cfg.OUTPUT_DIR, args.stage1_checkpoint)
+#         torch.save(model.state_dict(), checkpoint_path)
+#         logger.info(f"Stage 1 Checkpoint saved at {checkpoint_path}")
 
     # Run Stage 2
     if args.run_stage2:
-        logger.info("Starting Stage 2 Training...")
-        # Load Stage 1 Checkpoint
-        checkpoint_path = os.path.join(cfg.OUTPUT_DIR, args.stage1_checkpoint)
-        if os.path.exists(checkpoint_path):
-            model.load_state_dict(torch.load(checkpoint_path, map_location="cuda"))
-            logger.info(f"Loaded Stage 1 Checkpoint from {checkpoint_path}")
-        else:
-            logger.error(f"Stage 1 checkpoint not found at {checkpoint_path}. Exiting...")
-            exit(1)
+    #     logger.info("Starting Stage 2 Training...")
+    #     # Load Stage 1 Checkpoint
+    #     checkpoint_path = os.path.join(cfg.OUTPUT_DIR, args.stage1_checkpoint)
+    #     if os.path.exists(checkpoint_path):
+    #         model.load_state_dict(torch.load(checkpoint_path, map_location="cuda"))
+    #         logger.info(f"Loaded Stage 1 Checkpoint from {checkpoint_path}")
+    #     else:
+    #         logger.error(f"Stage 1 checkpoint not found at {checkpoint_path}. Exiting...")
+    #         exit(1)
 
-    # optimizer_1stage = make_optimizer_1stage(cfg, model)
-    # scheduler_1stage = create_scheduler(optimizer_1stage, num_epochs = cfg.SOLVER.STAGE1.MAX_EPOCHS, lr_min = cfg.SOLVER.STAGE1.LR_MIN, \
-    #                     warmup_lr_init = cfg.SOLVER.STAGE1.WARMUP_LR_INIT, warmup_t = cfg.SOLVER.STAGE1.WARMUP_EPOCHS, noise_range = None)
+    # # optimizer_1stage = make_optimizer_1stage(cfg, model)
+    # # scheduler_1stage = create_scheduler(optimizer_1stage, num_epochs = cfg.SOLVER.STAGE1.MAX_EPOCHS, lr_min = cfg.SOLVER.STAGE1.LR_MIN, \
+    # #                     warmup_lr_init = cfg.SOLVER.STAGE1.WARMUP_LR_INIT, warmup_t = cfg.SOLVER.STAGE1.WARMUP_EPOCHS, noise_range = None)
 
-    # do_train_stage1(
-    #     cfg,
-    #     model,
-    #     train_loader_stage1,
-    #     optimizer_1stage,
-    #     scheduler_1stage,
-    #     args.local_rank
-    # )
+    # # do_train_stage1(
+    # #     cfg,
+    # #     model,
+    # #     train_loader_stage1,
+    # #     optimizer_1stage,
+    # #     scheduler_1stage,
+    # #     args.local_rank
+    # # )
 
-    ######################################################################################################Changed!
+    # ######################################################################################################Changed!
 
     
-        loss_func, center_criterion = make_loss(cfg, num_classes=num_classes)
-        optimizer_2stage, optimizer_center_2stage = make_optimizer_2stage(cfg, model, center_criterion)
-        scheduler_2stage = WarmupMultiStepLR(optimizer_2stage, cfg.SOLVER.STAGE2.STEPS, cfg.SOLVER.STAGE2.GAMMA, cfg.SOLVER.STAGE2.WARMUP_FACTOR,
-                                      cfg.SOLVER.STAGE2.WARMUP_ITERS, cfg.SOLVER.STAGE2.WARMUP_METHOD)
+    #     loss_func, center_criterion = make_loss(cfg, num_classes=num_classes)
+    #     optimizer_2stage, optimizer_center_2stage = make_optimizer_2stage(cfg, model, center_criterion)
+    #     scheduler_2stage = WarmupMultiStepLR(optimizer_2stage, cfg.SOLVER.STAGE2.STEPS, cfg.SOLVER.STAGE2.GAMMA, cfg.SOLVER.STAGE2.WARMUP_FACTOR,
+    #                                   cfg.SOLVER.STAGE2.WARMUP_ITERS, cfg.SOLVER.STAGE2.WARMUP_METHOD)
 
         do_train_stage2(
             cfg,
