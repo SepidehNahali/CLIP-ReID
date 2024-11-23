@@ -160,26 +160,26 @@ def do_train_stage2(cfg,
                         logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
                     torch.cuda.empty_cache()
             else:
-    model.eval()
-    for n_iter, (img, vid, camid, camids, target_view, _) in enumerate(val_loader):
-        with torch.no_grad():
-            img = img.to(device)
-            if cfg.MODEL.SIE_CAMERA:
-                camids = camids.to(device)
-            else: 
-                camids = None
-            if cfg.MODEL.SIE_VIEW:
-                target_view = target_view.to(device)
-            else: 
-                target_view = None
-            feat = model(img, cam_label=camids, view_label=target_view)
-            evaluator.update((feat, vid, camid))
-    cmc, mAP, _, _, _, _, _ = evaluator.compute()
-    logger.info("Validation Results - Epoch: {}".format(epoch))
-    logger.info("mAP: {:.1%}".format(mAP))
-    for r in [1, 5, 10]:
-        logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
-    torch.cuda.empty_cache()
+                model.eval()
+                for n_iter, (img, vid, camid, camids, target_view, _) in enumerate(val_loader):
+                    with torch.no_grad():
+                        img = img.to(device)
+                        if cfg.MODEL.SIE_CAMERA:
+                            camids = camids.to(device)
+                        else: 
+                            camids = None
+                        if cfg.MODEL.SIE_VIEW:
+                            target_view = target_view.to(device)
+                        else: 
+                            target_view = None
+                        feat = model(img, cam_label=camids, view_label=target_view)
+                        evaluator.update((feat, vid, camid))
+                cmc, mAP, _, _, _, _, _ = evaluator.compute()
+                logger.info("Validation Results - Epoch: {}".format(epoch))
+                logger.info("mAP: {:.1%}".format(mAP))
+                for r in [1, 5, 10]:
+                    logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
+                torch.cuda.empty_cache()
 
     all_end_time = time.monotonic()
     total_time = timedelta(seconds=all_end_time - all_start_time)
