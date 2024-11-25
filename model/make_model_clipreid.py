@@ -168,11 +168,20 @@ class build_transformer(nn.Module):
             self.state_dict()[i].copy_(param_dict[i])
         print('Loading pretrained model for finetuning from {}'.format(model_path))
 
-
-def make_model(cfg, num_class, camera_num, view_num):
+####################################################################################CHANGED!
+# def make_model(cfg, num_class, camera_num, view_num):
+#     model = build_transformer(num_class, camera_num, view_num, cfg)
+#     return model
+def make_model(cfg, num_class, camera_num, view_num, data_dir):
     model = build_transformer(num_class, camera_num, view_num, cfg)
+    model.prompt_learner = PromptLearner(
+        dataset_name=cfg.DATASETS.NAMES,
+        dtype=model.dtype,
+        token_embedding=model.prompt_learner.token_embedding,
+        data_dir=data_dir
+    )
     return model
-
+####################################################################################CHANGED!
 
 from .clip import clip
 def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_size):
@@ -190,6 +199,47 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
     model = clip.build_model(state_dict or model.state_dict(), h_resolution, w_resolution, vision_stride_size)
 
     return model
+class PromptLearner(nn.Module):
+    def __init__(self, dataset_name, dtype, token_embedding, data_dir):
+        super().__init__()
+        
+        self.dtype = dtype
+        self.token_embedding = token_embedding
+        self.data_dir = data_dir
+        self.ctx_dim = 512
+
+        # Load vehicle metadata from dataset files
+        self.vehicle_color = self.load_metadata("list_color.txt")
+        self.vehicle_type = self.load_metadata("list_type.txt")
+        self.camera_id = self.load_metadata("camera_ID.txt")
+
+    def load_metadata(self, filename):
+        file_path = os.path.join(self.data_dir, filename)
+        with open(file_path, "r") as f:
+            return {int(line.split()[0]): line.split()[1] for line in f}
+
+    def generate_prompt(self, vehicle_id):
+        # Get vehicle-specific details
+        color = self.vehicle_color.get(vehicle_id, "unknown color")
+        type_ = self.vehicle_type.get(vehicle_id, "unknown type")
+        camera = self.camera_id.get(vehicle_id, "unknown camera")
+        
+        # Create a descriptive prompt
+        prompt = f"A photo of a {color} {type_} vehicle taken from camera {camera}."
+        return prompt
+
+    def forward(self, vehicle_ids):
+        prompts = []
+        for vehicle_id in vehicle_ids:
+            prompt = self.generate_prompt(vehicle_id)
+            prompts.append(prompt)
+        
+        # Tokenize and embed prompts
+        tokenized_prompts = clip.tokenize(prompts).cuda()
+        with torch.no_grad():
+            embedding = self.token_embedding(tokenized_prompts).type(self.dtype)
+        
+        return embedding
 
 # class PromptLearner(nn.Module):
 #     def __init__(self, num_class, dataset_name, dtype, token_embedding):
