@@ -103,15 +103,24 @@ class build_transformer(nn.Module):
             trunc_normal_(self.cv_embed, std=.02)
             print('camera number is : {}'.format(view_num))
 
+####################################################################################################################################CHANGED!
         dataset_name = cfg.DATASETS.NAMES
-        self.prompt_learner = PromptLearner(num_classes, dataset_name, clip_model.dtype, clip_model.token_embedding)
+        # self.prompt_learner = PromptLearner(num_classes, dataset_name, clip_model.dtype, clip_model.token_embedding)
+        self.prompt_learner = PromptLearner(num_classes, cfg.DATASETS.NAMES, clip_model.dtype, clip_model.token_embedding)
         self.text_encoder = TextEncoder(clip_model)
+###################################################################################################################################CHANGED!
 
+    
     def forward(self, x = None, label=None, get_image = False, get_text = False, cam_label= None, view_label=None):
+###################################################################################################################################CHANGED!
         if get_text == True:
-            prompts = self.prompt_learner(label) 
-            text_features = self.text_encoder(prompts, self.prompt_learner.tokenized_prompts)
+            # prompts = self.prompt_learner(label) 
+            # text_features = self.text_encoder(prompts, self.prompt_learner.tokenized_prompts)
+            tokenized_prompts = self.prompt_learner(vehicle_ids, vehicle_metadata)
+            # Encode tokenized prompts into embeddings
+            text_features = self.text_encoder(tokenized_prompts)
             return text_features
+###################################################################################################################################CHANGED!
 
         if get_image == True:
             image_features_last, image_features, image_features_proj = self.image_encoder(x) 
@@ -200,46 +209,74 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
 
     return model
 class PromptLearner(nn.Module):
-    def __init__(self, dataset_name, dtype, token_embedding, data_dir):
+    def __init__(self, num_classes, dataset_name, dtype, token_embedding):
         super().__init__()
-        
+        if dataset_name in ["VehicleID", "veri"]:
+            self.prompt_template = "A photo of a {} vehicle."
+        else:
+            self.prompt_template = "A photo of a {} person."
+
         self.dtype = dtype
         self.token_embedding = token_embedding
-        self.data_dir = data_dir
-        self.ctx_dim = 512
+        self.num_classes = num_classes
+        self.prompt_length = 77  # CLIP requires this length after tokenization
 
-        # Load vehicle metadata from dataset files
-        self.vehicle_color = self.load_metadata("list_color.txt")
-        self.vehicle_type = self.load_metadata("list_type.txt")
-        self.camera_id = self.load_metadata("camera_ID.txt")
+        # Initialize buffers for tokenized templates
+        self.register_buffer("base_prefix", None)  # Part before the class-specific text
+        self.register_buffer("base_suffix", None)  # Part after the class-specific text
 
-    def load_metadata(self, filename):
-        file_path = os.path.join(self.data_dir, filename)
-        with open(file_path, "r") as f:
-            return {int(line.split()[0]): line.split()[1] for line in f}
+        self.initialize_prompt_template()
 
-    def generate_prompt(self, vehicle_id):
-        # Get vehicle-specific details
-        color = self.vehicle_color.get(vehicle_id, "unknown color")
-        type_ = self.vehicle_type.get(vehicle_id, "unknown type")
-        camera = self.camera_id.get(vehicle_id, "unknown camera")
+    def initialize_prompt_template(self):
+        """Tokenize the prompt template and extract prefix/suffix tokens for padding."""
+        # Example template: "A photo of a {} vehicle."
+        placeholder = "X" * 4  # Dummy placeholder for vehicle descriptions
+        full_template = self.prompt_template.format(placeholder)
+        tokenized_template = clip.tokenize([full_template]).cuda()
+
+        # Extract prefix and suffix based on where the placeholder sits
+        # Locate the position of the placeholder in the tokenized template
+        token_placeholder_start = (tokenized_template[0] == 49406).nonzero(as_tuple=False)[0].item() + 1
+        token_placeholder_end = token_placeholder_start + 4
+
+        # Save prefix and suffix as buffers
+        self.base_prefix = tokenized_template[:, :token_placeholder_start]
+        self.base_suffix = tokenized_template[:, token_placeholder_end:]
+
+    def generate_prompt(self, vehicle_id, vehicle_color="unknown color", vehicle_type="unknown type"):
+        """Generate a descriptive prompt for a given vehicle ID with additional metadata."""
+        if vehicle_color == "unknown color" and vehicle_type == "unknown type":
+            description = f"vehicle {vehicle_id}"
+        elif vehicle_color == "unknown color":
+            description = f"{vehicle_type} vehicle {vehicle_id}"
+        elif vehicle_type == "unknown type":
+            description = f"{vehicle_color} vehicle {vehicle_id}"
+        else:
+            description = f"{vehicle_color} {vehicle_type} vehicle {vehicle_id}"
+        return self.prompt_template.format(description)
+
+    def forward(self, vehicle_ids, vehicle_metadata):
+        """
+        Generate tokenized prompts for a batch of vehicle IDs.
         
-        # Create a descriptive prompt
-        prompt = f"A photo of a {color} {type_} vehicle taken from camera {camera}."
-        return prompt
-
-    def forward(self, vehicle_ids):
+        Args:
+            vehicle_ids (list): List of vehicle IDs.
+            vehicle_metadata (dict): Dictionary containing metadata (e.g., color and type).
+        
+        Returns:
+            tokenized_prompts (torch.Tensor): Tokenized prompts of shape [batch_size, 77].
+        """
         prompts = []
         for vehicle_id in vehicle_ids:
-            prompt = self.generate_prompt(vehicle_id)
+            color = vehicle_metadata["color"].get(vehicle_id, "unknown color")
+            type_ = vehicle_metadata["type"].get(vehicle_id, "unknown type")
+            prompt = self.generate_prompt(vehicle_id, vehicle_color=color, vehicle_type=type_)
             prompts.append(prompt)
-        
-        # Tokenize and embed prompts
+
+        # Tokenize the prompts (CLIP's tokenizer will handle padding/truncation to 77 tokens)
         tokenized_prompts = clip.tokenize(prompts).cuda()
-        with torch.no_grad():
-            embedding = self.token_embedding(tokenized_prompts).type(self.dtype)
-        
-        return embedding
+        return tokenized_prompts
+
 
 # class PromptLearner(nn.Module):
 #     def __init__(self, num_class, dataset_name, dtype, token_embedding):
