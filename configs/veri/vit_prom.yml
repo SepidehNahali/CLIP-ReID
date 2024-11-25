@@ -69,8 +69,11 @@ TEST:
   FEAT_NORM: 'yes'
 
 DATASETS:
-  NAMES: ('veri')
-  ROOT_DIR: ('/kaggle/input/veridataset/VeRi')  # Update with your dataset directory path
-OUTPUT_DIR: '/kaggle/working/output'  # Adjust if necessary
+  NAMES: ('veri')  # Use the VeRi dataset
+  ROOT_DIR: ('/content/VeRi/VeRi')  # Update with your dataset directory path
+OUTPUT_DIR: '/content/drive/MyDrive/output'  # Adjust if necessary
+#   NAMES: ('veri')
+#   ROOT_DIR: ('/kaggle/input/veridataset/VeRi')  # Update with your dataset directory path
+# OUTPUT_DIR: '/kaggle/working/output'  # Adjust if necessary
 
 # CUDA_VISIBLE_DEVICES=0 python train_clipreid.py --config_file configs/veri/vit_clipreid.yml
