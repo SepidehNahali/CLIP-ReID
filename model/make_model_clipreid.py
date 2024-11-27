@@ -111,8 +111,7 @@ class build_transformer(nn.Module):
 
         vehicle_features = load_vehicle_features(label_file, color_file, type_file, camera_file)
 
-
-        self.prompt_learner = PromptLearner(num_classes, dataset_name, clip_model.dtype, clip_model.token_embedding, vehicle_features)
+        self.prompt_learner = PromptLearner(num_classes, 'veri', clip_model.dtype, clip_model.token_embedding, vehicle_features)
         self.text_encoder = TextEncoder(clip_model)
 
     def forward(self, x = None, label=None, get_image = False, get_text = False, cam_label= None, view_label=None):
