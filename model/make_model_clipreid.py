@@ -108,9 +108,7 @@ class build_transformer(nn.Module):
         color_file = cfg.DATASETS.COLOR_FILE
         type_file = cfg.DATASETS.TYPE_FILE
         camera_file = cfg.DATASETS.CAMERA_FILE
-        print("!!!!!!!!!!!!!!!!!!!!!!!build_transformer!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print('label_file',label_file,color_file,type_file,camera_file)
-        
+
         vehicle_features = load_vehicle_features(label_file, color_file, type_file, camera_file)
         print("!!!!!!!!!!!!!!!!!!!!!!!build_transformer!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         print('vehicle_features',vehicle_features)
