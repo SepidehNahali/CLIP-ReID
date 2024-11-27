@@ -110,7 +110,8 @@ class build_transformer(nn.Module):
         camera_file = cfg.DATASETS.CAMERA_FILE
 
         vehicle_features = load_vehicle_features(label_file, color_file, type_file, camera_file)
-
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print('vehicle_features',vehicle_features)
         self.prompt_learner = PromptLearner(num_classes, 'veri', clip_model.dtype, clip_model.token_embedding, vehicle_features)
         self.text_encoder = TextEncoder(clip_model)
 
