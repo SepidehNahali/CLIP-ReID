@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 from .clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
+from utils.dataset_utils import load_vehicle_features
+
 _tokenizer = _Tokenizer()
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 
@@ -101,6 +103,14 @@ class build_transformer(nn.Module):
             print('camera number is : {}'.format(view_num))
 
         dataset_name = cfg.DATASETS.NAMES
+        label_file = '/content/VeRi/VeRi/train_label.xml'
+        color_file = '/content/VeRi/VeRi/list_color.txt'
+        type_file = '/content/VeRi/VeRi/list_type.txt'
+        camera_file = '/content/VeRi/VeRi/camera_ID.txt'
+        
+        vehicle_features = load_vehicle_features(label_file, color_file, type_file, camera_file)
+
+
         self.prompt_learner = PromptLearner(num_classes, dataset_name, clip_model.dtype, clip_model.token_embedding)
         self.text_encoder = TextEncoder(clip_model)
 
