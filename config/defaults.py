@@ -90,6 +90,12 @@ _C.DATASETS.NAMES = ('market1501')
 # Root directory where datasets should be used (and downloaded if not found)
 _C.DATASETS.ROOT_DIR = ('../data')
 
+#------------------------------------------------------------------------------
+#Feature loader
+_C.DATASETS.LABEL_FILE = ''
+_C.DATASETS.COLOR_FILE = ''
+_C.DATASETS.TYPE_FILE = ''
+_C.DATASETS.CAMERA_FILE = ''
 
 # -----------------------------------------------------------------------------
 # DataLoader
