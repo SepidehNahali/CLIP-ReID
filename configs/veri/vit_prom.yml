@@ -71,10 +71,10 @@ TEST:
 DATASETS:
   NAMES: ('veri')  # Use the VeRi dataset
   ROOT_DIR: ('/content/VeRi/VeRi')  # Update with your dataset directory path
-  LABEL_FILE: '/content/VeRi/VeRi/label_file.xml'
-  COLOR_FILE: '/content/VeRi/VeRi/color_file.xml'
-  TYPE_FILE: '/content/VeRi/VeRi/type_file.xml'
-  CAMERA_FILE: '/content/VeRi/VeRi/camera_file.xml'
+  LABEL_FILE: '/content/VeRi/VeRi/train_label.xml'
+  COLOR_FILE: '/content/VeRi/VeRi/list_color.txt'
+  TYPE_FILE: '/content/VeRi/VeRi/list_type.txt'
+  CAMERA_FILE: '/content/VeRi/VeRi/camera_ID.txt'
 
 OUTPUT_DIR: '/content/drive/MyDrive/output'  # Adjust if necessary
 #   NAMES: ('veri')
