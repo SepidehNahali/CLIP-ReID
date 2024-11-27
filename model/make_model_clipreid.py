@@ -198,52 +198,58 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
     model = clip.build_model(state_dict or model.state_dict(), h_resolution, w_resolution, vision_stride_size)
 
     return model
-
 class PromptLearner(nn.Module):
     def __init__(self, num_class, dataset_name, dtype, token_embedding, vehicle_features):
         super().__init__()
-        # Vehicle features include type, color, and camera ID
-        self.vehicle_features = vehicle_features  # Dict mapping labels to features
-        print("!!!!!!!!!!!!!!!!!!!!!!PromptLearner!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print('vehicle_features',self.vehicle_features)
-        
-        # Initialize prompt template
-        if dataset_name == "VehicleID" or dataset_name == "veri":
+        self.vehicle_features = vehicle_features
+
+        # Define prompt template
+        if dataset_name in ["VehicleID", "veri"]:
             ctx_template = "A photo of a {color} {type} vehicle captured by camera {camera_id}."
         else:
             ctx_template = "A photo of a X X X X person."
-
+        
         self.ctx_template = ctx_template
-        ctx_dim = 512
+        self.num_class = num_class
+        self.dtype = dtype
 
-        # Tokenization setup
-        n_ctx = len(ctx_template.split())  # Dynamically set context length
+        # Tokenization setup: Pre-tokenize a padded version of the template
         tokenized_prompts = clip.tokenize(ctx_template).cuda()
         with torch.no_grad():
             embedding = token_embedding(tokenized_prompts).type(dtype)
         
         self.tokenized_prompts = tokenized_prompts
         self.register_buffer("template_embedding", embedding)
-        self.num_class = num_class
-        self.dtype = dtype
+
+        # Padding length to match CLIP's token size (77)
+        self.prompt_length = 77
+        n_ctx = len(ctx_template.split())
+        pad_length = self.prompt_length - n_ctx  # Remaining space for padding
+        self.pad_length = max(0, pad_length)
 
     def forward(self, labels):
-        # Dynamically generate prompts based on labels
         batch_prompts = []
-        print("labels",labels)
         for label in labels:
-            print("label",label)
-            features = self.vehicle_features[label.item()]  # Extract features for the label
+            # Dynamically generate the vehicle-specific prompt
+            features = self.vehicle_features[label.item()]
             prompt_text = self.ctx_template.format(
                 color=features["color"],
                 type=features["type"],
                 camera_id=features["camera_id"]
             )
+            # Tokenize the prompt
             tokenized_prompt = clip.tokenize(prompt_text).cuda()
             with torch.no_grad():
                 prompt_embedding = self.template_embedding[tokenized_prompt].type(self.dtype)
+            
+            # Pad to ensure total length is 77 tokens
+            if self.pad_length > 0:
+                pad_tokens = torch.zeros(self.pad_length, prompt_embedding.size(-1)).to(prompt_embedding.device)
+                prompt_embedding = torch.cat([prompt_embedding, pad_tokens], dim=0)
+            
             batch_prompts.append(prompt_embedding)
-
+        
         # Combine all prompts into a batch
         batch_prompts = torch.stack(batch_prompts, dim=0)
         return batch_prompts
+
