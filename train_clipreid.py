@@ -81,7 +81,7 @@ if __name__ == '__main__':
     if args.run_stage1:
         logger.info("Starting Stage 1 Training...")
         for name, param in model.named_parameters():
-             print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             if param.requires_grad:
                 print(f"Parameter: {name} | Shape: {param.shape}")
 
