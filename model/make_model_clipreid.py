@@ -102,16 +102,17 @@ class build_transformer(nn.Module):
             trunc_normal_(self.cv_embed, std=.02)
             print('camera number is : {}'.format(view_num))
 
-        dataset_name = cfg.DATASETS.NAMES
-        label_file = '/content/VeRi/VeRi/train_label.xml'
-        color_file = '/content/VeRi/VeRi/list_color.txt'
-        type_file = '/content/VeRi/VeRi/list_type.txt'
-        camera_file = '/content/VeRi/VeRi/camera_ID.txt'
         
+        # Load vehicle features
+        label_file = cfg.DATASETS.LABEL_FILE
+        color_file = cfg.DATASETS.COLOR_FILE
+        type_file = cfg.DATASETS.TYPE_FILE
+        camera_file = cfg.DATASETS.CAMERA_FILE
+
         vehicle_features = load_vehicle_features(label_file, color_file, type_file, camera_file)
 
 
-        self.prompt_learner = PromptLearner(num_classes, dataset_name, clip_model.dtype, clip_model.token_embedding)
+        self.prompt_learner = PromptLearner(num_classes, dataset_name, clip_model.dtype, clip_model.token_embedding, vehicle_features)
         self.text_encoder = TextEncoder(clip_model)
 
     def forward(self, x = None, label=None, get_image = False, get_text = False, cam_label= None, view_label=None):
