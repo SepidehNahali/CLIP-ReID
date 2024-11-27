@@ -208,7 +208,7 @@ class PromptLearner(nn.Module):
         if dataset_name == "VehicleID" or dataset_name == "veri":
             ctx_template = "A photo of a {color} {type} vehicle captured by camera {camera_id}."
         else:
-            ctx_template = "A photo of a {color} {type} person captured by camera {camera_id}."
+            ctx_template = "A photo of a X X X X person."
 
         self.ctx_template = ctx_template
         ctx_dim = 512
