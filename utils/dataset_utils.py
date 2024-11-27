@@ -51,5 +51,9 @@ def load_vehicle_features(label_file, color_file, type_file, camera_file):
     except ET.ParseError as e:
         print(f"XML parsing error: {e}")
         raise
+    print("Label file:", label_file)
+    print("Color file:", color_file)
+    print("Type file:", type_file)
+    print("Camera file:", camera_file)
 
     return vehicle_features
