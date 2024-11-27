@@ -108,18 +108,6 @@ if __name__ == '__main__':
             logger.error(f"Stage 1 checkpoint not found at {checkpoint_path}. Exiting...")
             exit(1)
 
-        # optimizer_1stage = make_optimizer_1stage(cfg, model)
-        # scheduler_1stage = create_scheduler(optimizer_1stage, num_epochs = cfg.SOLVER.STAGE1.MAX_EPOCHS, lr_min = cfg.SOLVER.STAGE1.LR_MIN, \
-        #                     warmup_lr_init = cfg.SOLVER.STAGE1.WARMUP_LR_INIT, warmup_t = cfg.SOLVER.STAGE1.WARMUP_EPOCHS, noise_range = None)
-    
-        # do_train_stage1(
-        #     cfg,
-        #     model,
-        #     train_loader_stage1,
-        #     optimizer_1stage,
-        #     scheduler_1stage,
-        #     args.local_rank
-        # )
 
     ######################################################################################################Changed!
 
