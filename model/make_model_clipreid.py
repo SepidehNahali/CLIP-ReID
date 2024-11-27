@@ -1,4 +1,4 @@
-nimport torch
+import torch
 import torch.nn as nn
 import numpy as np
 from .clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
