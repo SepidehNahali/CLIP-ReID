@@ -71,6 +71,11 @@ TEST:
 DATASETS:
   NAMES: ('veri')  # Use the VeRi dataset
   ROOT_DIR: ('/content/VeRi/VeRi')  # Update with your dataset directory path
+  LABEL_FILE: '/content/VeRi/VeRi/label_file.xml'
+  COLOR_FILE: '/content/VeRi/VeRi/color_file.xml'
+  TYPE_FILE: '/content/VeRi/VeRi/type_file.xml'
+  CAMERA_FILE: '/content/VeRi/VeRi/camera_file.xml'
+
 OUTPUT_DIR: '/content/drive/MyDrive/output'  # Adjust if necessary
 #   NAMES: ('veri')
 #   ROOT_DIR: ('/kaggle/input/veridataset/VeRi')  # Update with your dataset directory path
