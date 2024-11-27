@@ -110,7 +110,7 @@ class build_transformer(nn.Module):
         camera_file = cfg.DATASETS.CAMERA_FILE
 
         vehicle_features = load_vehicle_features(label_file, color_file, type_file, camera_file)
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print("!!!!!!!!!!!!!!!!!!!!!!!build_transformer!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         print('vehicle_features',vehicle_features)
         self.prompt_learner = PromptLearner(num_classes, 'veri', clip_model.dtype, clip_model.token_embedding, vehicle_features)
         self.text_encoder = TextEncoder(clip_model)
@@ -204,7 +204,9 @@ class PromptLearner(nn.Module):
         super().__init__()
         # Vehicle features include type, color, and camera ID
         self.vehicle_features = vehicle_features  # Dict mapping labels to features
-
+        print("!!!!!!!!!!!!!!!!!!!!!!PromptLearner!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print('vehicle_features',self.vehicle_features)
+        
         # Initialize prompt template
         if dataset_name == "VehicleID" or dataset_name == "veri":
             ctx_template = "A photo of a {color} {type} vehicle captured by camera {camera_id}."
