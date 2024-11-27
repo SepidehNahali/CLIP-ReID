@@ -1,7 +1,8 @@
 import xml.etree.ElementTree as ET
-import codecs
 
 def load_vehicle_features(label_file, color_file, type_file, camera_file):
+    import codecs  # To handle file encoding
+
     vehicle_features = {}
 
     # Load color, type, and camera mappings
@@ -24,11 +25,13 @@ def load_vehicle_features(label_file, color_file, type_file, camera_file):
             camera_id = line.strip()
             camera_map[camera_id] = f"Camera-{camera_id}"
 
-    # Parse XML file with proper encoding handling
+    # Read and decode the XML file
     try:
         with codecs.open(label_file, 'r', encoding='utf-8') as f:
-            tree = ET.parse(f)
-            root = tree.getroot()
+            content = f.read()
+
+        # Parse the XML content
+        root = ET.fromstring(content)
 
         for item in root.findall('Item'):
             vehicle_id = item.get('vehicleID')
@@ -44,6 +47,9 @@ def load_vehicle_features(label_file, color_file, type_file, camera_file):
 
     except ValueError as e:
         print(f"Encoding issue with the XML file: {e}")
+        raise
+    except ET.ParseError as e:
+        print(f"XML parsing error: {e}")
         raise
 
     return vehicle_features
