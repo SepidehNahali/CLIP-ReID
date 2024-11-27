@@ -80,6 +80,11 @@ if __name__ == '__main__':
     # Run Stage 1
     if args.run_stage1:
         logger.info("Starting Stage 1 Training...")
+        for name, param in model.named_parameters():
+             print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            if param.requires_grad:
+                print(f"Parameter: {name} | Shape: {param.shape}")
+
         optimizer_1stage = make_optimizer_1stage(cfg, model)
         scheduler_1stage = create_scheduler(
             optimizer_1stage,
