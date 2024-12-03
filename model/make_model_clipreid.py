@@ -243,11 +243,14 @@ class PromptLearner(nn.Module):
             # Convert label to a zero-padded string
             # Convert label to zero-padded string
             label = torch.clamp(label, min=0, max=self.cls_ctx.size(0) - 1)
-
             label_str = f"{label.item():04d}"
             if label_str not in self.vehicle_features:
-                raise KeyError(f"Label '{label_str}' not found in vehicle_features.")
+                print(f"Warning: Missing vehicle features for label '{label_str}'")
+                continue  # Skip this label or handle as needed
+
             features = self.vehicle_features[label_str]
+            print(f"Labels: {labels}")
+            print(f"Label range: {labels.min().item()} to {labels.max().item()}")
 
 
             prompt_text = self.ctx_template.format(
@@ -258,7 +261,9 @@ class PromptLearner(nn.Module):
             # Tokenize the prompt
             tokenized_prompt = clip.tokenize(prompt_text).cuda()
             with torch.no_grad():
-                prompt_embedding = self.template_embedding[tokenized_prompt].type(self.dtype)
+                # prompt_embedding = self.template_embedding[tokenized_prompt].type(self.dtype)
+                prompt_embedding = self.template_embedding[tokenized_prompt]
+
             print(f"label: {label}, label.shape: {label.shape}")
             print(f"self.cls_ctx.shape: {self.cls_ctx.shape}")
 
