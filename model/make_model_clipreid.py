@@ -200,102 +200,103 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
     return model
 class PromptLearner(nn.Module):
     def __init__(self, num_class, dataset_name, dtype, token_embedding, vehicle_features):
+ 
         super().__init__()
-        if dataset_name == "VehicleID" or dataset_name == "veri":
-            ctx_init = "A photo of a X X X X vehicle."
+        self.vehicle_features = vehicle_features
+
+        # Define prompt template
+        if dataset_name in ["VehicleID", "veri"]:
+            ctx_template = "A photo of a {color} {type} vehicle captured by camera {camera_id}."
         else:
-            ctx_init = "A photo of a X X X X person."
-
-        ctx_dim = 512
-        # use given words to initialize context vectors
-        ctx_init = ctx_init.replace("_", " ")
-        n_ctx = 4
+            ctx_template = "A photo of a X X X X person."
         
-        tokenized_prompts = clip.tokenize(ctx_init).cuda() 
-        with torch.no_grad():
-            embedding = token_embedding(tokenized_prompts).type(dtype) 
-        self.tokenized_prompts = tokenized_prompts  # torch.Tensor
-
-        n_cls_ctx = 4
-        cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
-        nn.init.normal_(cls_vectors, std=0.02)
-        self.cls_ctx = nn.Parameter(cls_vectors) 
-
-        
-        # These token vectors will be saved when in save_model(),
-        # but they should be ignored in load_model() as we want to use
-        # those computed using the current class names
-        self.register_buffer("token_prefix", embedding[:, :n_ctx + 1, :])  
-        self.register_buffer("token_suffix", embedding[:, n_ctx + 1 + n_cls_ctx: , :])  
+        self.ctx_template = ctx_template
         self.num_class = num_class
-        self.n_cls_ctx = n_cls_ctx
+        self.dtype = dtype
 
-    def forward(self, label):
-        cls_ctx = self.cls_ctx[label] 
-        b = label.shape[0]
-        prefix = self.token_prefix.expand(b, -1, -1) 
-        suffix = self.token_suffix.expand(b, -1, -1) 
+        # Tokenization setup: Pre-tokenize a padded version of the template
+        tokenized_prompts = clip.tokenize(ctx_template).cuda()
+        with torch.no_grad():
+            embedding = token_embedding(tokenized_prompts).type(dtype)
+        
+        self.tokenized_prompts = tokenized_prompts
+        self.register_buffer("template_embedding", embedding)
+
+        # Padding length to match CLIP's token size (77)
+        self.prompt_length = 77
+        n_ctx = len(ctx_template.split())
+        pad_length = self.prompt_length - n_ctx  # Remaining space for padding
+        self.pad_length = max(0, pad_length)
+
+    def forward(self, labels):
+        batch_prompts = []
+        for label in labels:
+            # Dynamically generate the vehicle-specific prompt
+            features = self.vehicle_features[label.item()]
+            prompt_text = self.ctx_template.format(
+                color=features["color"],
+                type=features["type"],
+                camera_id=features["camera_id"]
+            )
+            # Tokenize the prompt
+            tokenized_prompt = clip.tokenize(prompt_text).cuda()
+            with torch.no_grad():
+                prompt_embedding = self.template_embedding[tokenized_prompt].type(self.dtype)
             
-        prompts = torch.cat(
-            [
-                prefix,  # (n_cls, 1, dim)
-                cls_ctx,     # (n_cls, n_ctx, dim)
-                suffix,  # (n_cls, *, dim)
-            ],
-            dim=1,
-        ) 
+            # Pad to ensure total length is 77 tokens
+            if self.pad_length > 0:
+                pad_tokens = torch.zeros(self.pad_length, prompt_embedding.size(-1)).to(prompt_embedding.device)
+                prompt_embedding = torch.cat([prompt_embedding, pad_tokens], dim=0)
+            
+            batch_prompts.append(prompt_embedding)
+        
+        # Combine all prompts into a batch
+        batch_prompts = torch.stack(batch_prompts, dim=0)
+        return batch_prompts
 
-        return prompts 
     #     super().__init__()
-    #     self.vehicle_features = vehicle_features
-
-    #     # Define prompt template
-    #     if dataset_name in ["VehicleID", "veri"]:
-    #         ctx_template = "A photo of a {color} {type} vehicle captured by camera {camera_id}."
+    #     if dataset_name == "VehicleID" or dataset_name == "veri":
+    #         ctx_init = "A photo of a X X X X vehicle."
     #     else:
-    #         ctx_template = "A photo of a X X X X person."
-        
-    #     self.ctx_template = ctx_template
-    #     self.num_class = num_class
-    #     self.dtype = dtype
+    #         ctx_init = "A photo of a X X X X person."
 
-    #     # Tokenization setup: Pre-tokenize a padded version of the template
-    #     tokenized_prompts = clip.tokenize(ctx_template).cuda()
+    #     ctx_dim = 512
+    #     # use given words to initialize context vectors
+    #     ctx_init = ctx_init.replace("_", " ")
+    #     n_ctx = 4
+        
+    #     tokenized_prompts = clip.tokenize(ctx_init).cuda() 
     #     with torch.no_grad():
-    #         embedding = token_embedding(tokenized_prompts).type(dtype)
+    #         embedding = token_embedding(tokenized_prompts).type(dtype) 
+    #     self.tokenized_prompts = tokenized_prompts  # torch.Tensor
+
+    #     n_cls_ctx = 4
+    #     cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
+    #     nn.init.normal_(cls_vectors, std=0.02)
+    #     self.cls_ctx = nn.Parameter(cls_vectors) 
+
         
-    #     self.tokenized_prompts = tokenized_prompts
-    #     self.register_buffer("template_embedding", embedding)
+    #     # These token vectors will be saved when in save_model(),
+    #     # but they should be ignored in load_model() as we want to use
+    #     # those computed using the current class names
+    #     self.register_buffer("token_prefix", embedding[:, :n_ctx + 1, :])  
+    #     self.register_buffer("token_suffix", embedding[:, n_ctx + 1 + n_cls_ctx: , :])  
+    #     self.num_class = num_class
+    #     self.n_cls_ctx = n_cls_ctx
 
-    #     # Padding length to match CLIP's token size (77)
-    #     self.prompt_length = 77
-    #     n_ctx = len(ctx_template.split())
-    #     pad_length = self.prompt_length - n_ctx  # Remaining space for padding
-    #     self.pad_length = max(0, pad_length)
-
-    # def forward(self, labels):
-    #     batch_prompts = []
-    #     for label in labels:
-    #         # Dynamically generate the vehicle-specific prompt
-    #         features = self.vehicle_features[label.item()]
-    #         prompt_text = self.ctx_template.format(
-    #             color=features["color"],
-    #             type=features["type"],
-    #             camera_id=features["camera_id"]
-    #         )
-    #         # Tokenize the prompt
-    #         tokenized_prompt = clip.tokenize(prompt_text).cuda()
-    #         with torch.no_grad():
-    #             prompt_embedding = self.template_embedding[tokenized_prompt].type(self.dtype)
+    # def forward(self, label):
+    #     cls_ctx = self.cls_ctx[label] 
+    #     b = label.shape[0]
+    #     prefix = self.token_prefix.expand(b, -1, -1) 
+    #     suffix = self.token_suffix.expand(b, -1, -1) 
             
-    #         # Pad to ensure total length is 77 tokens
-    #         if self.pad_length > 0:
-    #             pad_tokens = torch.zeros(self.pad_length, prompt_embedding.size(-1)).to(prompt_embedding.device)
-    #             prompt_embedding = torch.cat([prompt_embedding, pad_tokens], dim=0)
-            
-    #         batch_prompts.append(prompt_embedding)
-        
-    #     # Combine all prompts into a batch
-    #     batch_prompts = torch.stack(batch_prompts, dim=0)
-    #     return batch_prompts
+    #     prompts = torch.cat(
+    #         [
+    #             prefix,  # (n_cls, 1, dim)
+    #             cls_ctx,     # (n_cls, n_ctx, dim)
+    #             suffix,  # (n_cls, *, dim)
+    #         ],
+    #         dim=1,
+    #     ) 
 
+    #     return prompts
