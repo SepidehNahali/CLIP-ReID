@@ -242,10 +242,13 @@ class PromptLearner(nn.Module):
             # print("Available keys in vehicle_features:", self.vehicle_features.keys())
             # Convert label to a zero-padded string
             # Convert label to zero-padded string
+            label = torch.clamp(label, min=0, max=self.cls_ctx.size(0) - 1)
+
             label_str = f"{label.item():04d}"
             if label_str not in self.vehicle_features:
                 raise KeyError(f"Label '{label_str}' not found in vehicle_features.")
             features = self.vehicle_features[label_str]
+
 
             prompt_text = self.ctx_template.format(
                 color=features["color"],
@@ -256,6 +259,8 @@ class PromptLearner(nn.Module):
             tokenized_prompt = clip.tokenize(prompt_text).cuda()
             with torch.no_grad():
                 prompt_embedding = self.template_embedding[tokenized_prompt].type(self.dtype)
+            print(f"label: {label}, label.shape: {label.shape}")
+            print(f"self.cls_ctx.shape: {self.cls_ctx.shape}")
 
             # Add learnable class-specific context embeddings
             cls_ctx = self.cls_ctx[label]  # Shape: (4, ctx_dim)
