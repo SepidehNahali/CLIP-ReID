@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 from .clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
 from utils.dataset_utils import load_vehicle_features
-
+ 
 _tokenizer = _Tokenizer()
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 
