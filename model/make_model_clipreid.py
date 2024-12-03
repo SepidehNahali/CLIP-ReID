@@ -198,10 +198,12 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
     model = clip.build_model(state_dict or model.state_dict(), h_resolution, w_resolution, vision_stride_size)
 
     return model
+
+
 class PromptLearner(nn.Module):
     def __init__(self, num_class, dataset_name, dtype, token_embedding, vehicle_features):
- 
         super().__init__()
+        
         self.vehicle_features = vehicle_features
 
         # Define prompt template
@@ -214,7 +216,7 @@ class PromptLearner(nn.Module):
         self.num_class = num_class
         self.dtype = dtype
 
-        # Tokenization setup: Pre-tokenize a padded version of the template
+        # Tokenize the template
         tokenized_prompts = clip.tokenize(ctx_template).cuda()
         with torch.no_grad():
             embedding = token_embedding(tokenized_prompts).type(dtype)
@@ -227,6 +229,11 @@ class PromptLearner(nn.Module):
         n_ctx = len(ctx_template.split())
         pad_length = self.prompt_length - n_ctx  # Remaining space for padding
         self.pad_length = max(0, pad_length)
+
+        # Learnable class-specific context embeddings
+        ctx_dim = embedding.size(-1)  # Dimensionality of embeddings
+        self.cls_ctx = nn.Parameter(torch.empty(num_class, 4, ctx_dim))  # 4 learnable tokens per class
+        nn.init.normal_(self.cls_ctx, std=0.02)  # Initialize learnable embeddings
 
     def forward(self, labels):
         batch_prompts = []
@@ -242,7 +249,11 @@ class PromptLearner(nn.Module):
             tokenized_prompt = clip.tokenize(prompt_text).cuda()
             with torch.no_grad():
                 prompt_embedding = self.template_embedding[tokenized_prompt].type(self.dtype)
-            
+
+            # Add learnable class-specific context embeddings
+            cls_ctx = self.cls_ctx[label]  # Shape: (4, ctx_dim)
+            prompt_embedding = torch.cat([prompt_embedding, cls_ctx], dim=0)
+
             # Pad to ensure total length is 77 tokens
             if self.pad_length > 0:
                 pad_tokens = torch.zeros(self.pad_length, prompt_embedding.size(-1)).to(prompt_embedding.device)
