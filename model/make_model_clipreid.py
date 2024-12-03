@@ -239,6 +239,8 @@ class PromptLearner(nn.Module):
         batch_prompts = []
         for label in labels:
             # Dynamically generate the vehicle-specific prompt
+            print("Available keys in vehicle_features:", self.vehicle_features.keys())
+
             features = self.vehicle_features[label.item()]
             prompt_text = self.ctx_template.format(
                 color=features["color"],
