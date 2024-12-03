@@ -241,10 +241,12 @@ class PromptLearner(nn.Module):
             # Dynamically generate the vehicle-specific prompt
             # print("Available keys in vehicle_features:", self.vehicle_features.keys())
             # Convert label to a zero-padded string
+            # Convert label to zero-padded string
             label_str = f"{label.item():04d}"
+            if label_str not in self.vehicle_features:
+                raise KeyError(f"Label '{label_str}' not found in vehicle_features.")
             features = self.vehicle_features[label_str]
 
-            features = self.vehicle_features[label.item()]
             prompt_text = self.ctx_template.format(
                 color=features["color"],
                 type=features["type"],
