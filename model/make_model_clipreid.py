@@ -241,7 +241,6 @@ class PromptLearner(nn.Module):
             # Dynamically generate the vehicle-specific prompt
             # print("Available keys in vehicle_features:", self.vehicle_features.keys())
             # Convert label to a zero-padded string
-            # Convert label to zero-padded string
             label = torch.clamp(label, min=0, max=self.cls_ctx.size(0) - 1)
 
             label_str = f"{label.item():04d}"
@@ -259,9 +258,7 @@ class PromptLearner(nn.Module):
             )
             # Tokenize the prompt
             tokenized_prompt = clip.tokenize(prompt_text).cuda()
-            tokenized_prompt = F.pad(tokenized_prompt, (0, self.prompt_length - tokenized_prompt.size(1)), value=0)
             assert label.min() >= 0 and label.max() < self.cls_ctx.size(0), "Invalid label index"
-            assert tokenized_prompt.size(1) <= self.prompt_length, "Tokenized prompt exceeds maximum length"
 
             with torch.no_grad():
                tokenized_prompt_indices = tokenized_prompt.squeeze(0)
