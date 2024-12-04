@@ -240,7 +240,8 @@ class PromptLearner(nn.Module):
         for label in labels:
             # Dynamically generate the vehicle-specific prompt
             # print("Available keys in vehicle_features:", self.vehicle_features.keys())
-            # Convert label to a zero-padded string
+            label = torch.clamp(label, min=0, max=self.cls_ctx.size(0) - 1)
+            # Clip values to stay within valid range
             label = torch.clamp(label, min=0, max=self.cls_ctx.size(0) - 1)
 
             label_str = f"{label.item():04d}"
@@ -258,16 +259,15 @@ class PromptLearner(nn.Module):
             )
             # Tokenize the prompt
             tokenized_prompt = clip.tokenize(prompt_text).cuda()
-            assert label.min() >= 0 and label.max() < self.cls_ctx.size(0), "Invalid label index"
 
             with torch.no_grad():
                tokenized_prompt_indices = tokenized_prompt.squeeze(0)
                prompt_embedding = self.template_embedding[tokenized_prompt_indices].type(self.dtype)
 
-            print(f"label: {label}, valid range: [0, {self.cls_ctx.size(0) - 1}]")
-            print(f"self.cls_ctx.shape: {self.cls_ctx.shape}")
-            print(f"self.template_embedding.shape: {self.template_embedding.shape}")
-            print(f"tokenized_prompt.shape: {tokenized_prompt.shape}, tokenized_prompt: {tokenized_prompt}")
+            print(f"label shape: {label.shape}, values: {label}")
+            print(f"Valid index range: [0, {self.cls_ctx.size(0) - 1}]")
+            assert label.max() < self.cls_ctx.size(0), "Label index is out of bounds!"
+            assert label.min() >= 0, "Label index contains negative values!"
 
             # Add learnable class-specific context embeddings
             cls_ctx = self.cls_ctx[label]  # Shape: (4, ctx_dim)
