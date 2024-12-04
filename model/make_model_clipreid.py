@@ -247,7 +247,9 @@ class PromptLearner(nn.Module):
             label_str = f"{label.item():04d}"
             if label_str not in self.vehicle_features:
                 raise KeyError(f"Label '{label_str}' not found in vehicle_features.")
-            features = self.vehicle_features[label_str]
+            # features = self.vehicle_features[label_str]
+           default_features = {"color": "unknown", "type": "vehicle", "camera_id": "unknown"}
+           features = self.vehicle_features.get(label_str, default_features)
 
 
             prompt_text = self.ctx_template.format(
@@ -257,10 +259,18 @@ class PromptLearner(nn.Module):
             )
             # Tokenize the prompt
             tokenized_prompt = clip.tokenize(prompt_text).cuda()
+            tokenized_prompt = F.pad(tokenized_prompt, (0, self.prompt_length - tokenized_prompt.size(1)), value=0)
+            assert label.min() >= 0 and label.max() < self.cls_ctx.size(0), "Invalid label index"
+            assert tokenized_prompt.size(1) <= self.prompt_length, "Tokenized prompt exceeds maximum length"
+
             with torch.no_grad():
-                prompt_embedding = self.template_embedding[tokenized_prompt].type(self.dtype)
-            print(f"label: {label}, label.shape: {label.shape}")
+               tokenized_prompt_indices = tokenized_prompt.squeeze(0)
+               prompt_embedding = self.template_embedding[tokenized_prompt_indices].type(self.dtype)
+
+            print(f"label: {label}, valid range: [0, {self.cls_ctx.size(0) - 1}]")
             print(f"self.cls_ctx.shape: {self.cls_ctx.shape}")
+            print(f"self.template_embedding.shape: {self.template_embedding.shape}")
+            print(f"tokenized_prompt.shape: {tokenized_prompt.shape}, tokenized_prompt: {tokenized_prompt}")
 
             # Add learnable class-specific context embeddings
             cls_ctx = self.cls_ctx[label]  # Shape: (4, ctx_dim)
@@ -270,7 +280,7 @@ class PromptLearner(nn.Module):
             if self.pad_length > 0:
                 pad_tokens = torch.zeros(self.pad_length, prompt_embedding.size(-1)).to(prompt_embedding.device)
                 prompt_embedding = torch.cat([prompt_embedding, pad_tokens], dim=0)
-            
+
             batch_prompts.append(prompt_embedding)
         
         # Combine all prompts into a batch
