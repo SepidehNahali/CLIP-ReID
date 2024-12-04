@@ -248,8 +248,8 @@ class PromptLearner(nn.Module):
             if label_str not in self.vehicle_features:
                 raise KeyError(f"Label '{label_str}' not found in vehicle_features.")
             # features = self.vehicle_features[label_str]
-           default_features = {"color": "unknown", "type": "vehicle", "camera_id": "unknown"}
-           features = self.vehicle_features.get(label_str, default_features)
+            default_features = {"color": "unknown", "type": "vehicle", "camera_id": "unknown"}
+            features = self.vehicle_features.get(label_str, default_features)
 
 
             prompt_text = self.ctx_template.format(
