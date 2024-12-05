@@ -216,10 +216,10 @@ class PromptLearner(nn.Module):
        print(f"  Data type: {dtype}")
        print(f"Type of vehicle_features: {type(vehicle_features)}")
 
-        if isinstance(vehicle_features, nn.Embedding):
+       if isinstance(vehicle_features, nn.Embedding):
             num_embeddings, embedding_dim = vehicle_features.weight.shape
             print(f"  Vehicle features: {num_embeddings} embeddings with dimension {embedding_dim}")
-        else:
+       else:
             print(f"  Number of vehicle features: {len(vehicle_features)}")
        print(f"  CLIP model: {clip_model}")
         if isinstance(vehicle_features, nn.Embedding):
