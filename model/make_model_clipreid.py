@@ -263,11 +263,22 @@ class PromptLearner(nn.Module):
             with torch.no_grad():
                tokenized_prompt_indices = tokenized_prompt.squeeze(0)
                prompt_embedding = self.template_embedding[tokenized_prompt_indices].type(self.dtype)
+               if tokenized_prompt_indices.max() >= self.template_embedding.size(0):
+                   raise IndexError(f"Token index out of range: {tokenized_prompt_indices.max()}, "
+                                    f"valid max: {self.template_embedding.size(0) - 1}")
 
-            print(f"label shape: {label.shape}, values: {label}")
+            # Safely print tensor details
+            print(f"label shape: {label.shape}, values: {label.tolist() if label.numel() < 20 else 'Too many to display'}")
             print(f"Valid index range: [0, {self.cls_ctx.size(0) - 1}]")
-            assert label.max() < self.cls_ctx.size(0), "Label index is out of bounds!"
-            assert label.min() >= 0, "Label index contains negative values!"
+            print(f"self.cls_ctx size: {self.cls_ctx.size()}, prompt_embedding shape: {prompt_embedding.shape}")
+   
+            # Add assertions to catch out-of-bounds errors early
+            label = torch.clamp(label, min=0, max=self.cls_ctx.size(0) - 1)
+            assert label.max() < self.cls_ctx.size(0), f"Invalid label index: {label.max()}, valid max: {self.cls_ctx.size(0) - 1}"
+            assert label.min() >= 0, f"Invalid label index: {label.min()}, valid min: 0"
+            assert not torch.isnan(label).any(), "NaN detected in label!"
+            assert not torch.isnan(self.cls_ctx).any(), "NaN detected in cls_ctx!"
+
 
             # Add learnable class-specific context embeddings
             cls_ctx = self.cls_ctx[label]  # Shape: (4, ctx_dim)
