@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 from .clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
 from utils.dataset_utils import load_vehicle_features
- 
+import clip
 _tokenizer = _Tokenizer()
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 
@@ -200,100 +200,89 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
     return model
 
 
+
 class PromptLearner(nn.Module):
-    def __init__(self, num_class, dataset_name, dtype, token_embedding, vehicle_features):
-        super().__init__()
-        
-        self.vehicle_features = vehicle_features
 
-        # Define prompt template
-        if dataset_name in ["VehicleID", "veri"]:
-            ctx_template = "A photo of a {color} {type} vehicle captured by camera {camera_id}."
-        else:
-            ctx_template = "A photo of a X X X X person."
-        
-        self.ctx_template = ctx_template
-        self.num_class = num_class
-        self.dtype = dtype
+   def __init__(self, num_class, dataset_name, dtype, vehicle_features, clip_model):
+       super().__init__()
+       
+       self.vehicle_features = vehicle_features
+       self.clip_model = clip_model
+       self.dtype = dtype
+       self.num_class = num_class
 
-        # Tokenize the template
-        tokenized_prompts = clip.tokenize(ctx_template).cuda()
-        with torch.no_grad():
-            embedding = token_embedding(tokenized_prompts).type(dtype)
-        
-        self.tokenized_prompts = tokenized_prompts
-        self.register_buffer("template_embedding", embedding)
+       # Define prompt template
+       if dataset_name.lower() in ["vehicleid", "veri"]:
+           self.ctx_template = "A photo of a {color} {type} vehicle captured by camera {camera_id}."
+       else:
+           self.ctx_template = "A photo of a person."
 
-        # Padding length to match CLIP's token size (77)
-        self.prompt_length = 77
-        n_ctx = len(ctx_template.split())
-        pad_length = self.prompt_length - n_ctx  # Remaining space for padding
-        self.pad_length = max(0, pad_length)
+       # Learnable class-specific context embeddings
+       # Assuming CLIP's text projection dimension is consistent
+       ctx_dim = self.clip_model.text_projection.shape[1]  # Adjust based on actual CLIP model
+       self.cls_ctx = nn.Parameter(torch.empty(num_class, 4, ctx_dim))  # 4 learnable tokens per class
+       nn.init.normal_(self.cls_ctx, std=0.02)  # Initialize learnable embeddings
 
-        # Learnable class-specific context embeddings
-        ctx_dim = embedding.size(-1)  # Dimensionality of embeddings
-        self.cls_ctx = nn.Parameter(torch.empty(num_class, 4, ctx_dim))  # 4 learnable tokens per class
-        nn.init.normal_(self.cls_ctx, std=0.02)  # Initialize learnable embeddings
+       # Padding length to match CLIP's token size (77)
+       self.prompt_length = 77
+       self.n_cls_ctx = 4  # Number of learnable tokens per class
+       self.pad_length = self.prompt_length - self.n_cls_ctx  # Remaining space for CLIP tokens
 
-    def forward(self, labels):
-        batch_prompts = []
-        for label in labels:
-            # Dynamically generate the vehicle-specific prompt
-            # print("Available keys in vehicle_features:", self.vehicle_features.keys())
-            label = torch.clamp(label, min=0, max=self.cls_ctx.size(0) - 1)
-            # Clip values to stay within valid range
-            label = torch.clamp(label, min=0, max=self.cls_ctx.size(0) - 1)
+   def forward(self, labels):
+       """
+       labels: Tensor of shape (batch_size,)
+       Returns:
+           batch_prompts: Tensor of shape (batch_size, prompt_length, embedding_dim)
+       """
+       batch_size = labels.size(0)
 
-            label_str = f"{label.item():04d}"
-            if label_str not in self.vehicle_features:
-                raise KeyError(f"Label '{label_str}' not found in vehicle_features.")
-            # features = self.vehicle_features[label_str]
-            default_features = {"color": "unknown", "type": "vehicle", "camera_id": "unknown"}
-            features = self.vehicle_features.get(label_str, default_features)
+       # Clamp labels to valid range
+       labels = labels.clamp(min=0, max=self.num_class - 1)
 
+       # Convert labels to zero-padded strings
+       label_strs = [f"{label.item():04d}" for label in labels]
 
-            prompt_text = self.ctx_template.format(
-                color=features["color"],
-                type=features["type"],
-                camera_id=features["camera_id"]
-            )
-            # Tokenize the prompt
-            tokenized_prompt = clip.tokenize(prompt_text).cuda()
+       # Retrieve features for each label
+       features = []
+       for label_str in label_strs:
+           feature = self.vehicle_features.get(label_str, {
+               "color": "unknown",
+               "type": "vehicle",
+               "camera_id": "unknown"
+           })
+           features.append(feature)
 
-            with torch.no_grad():
-               tokenized_prompt_indices = tokenized_prompt.squeeze(0)
-               prompt_embedding = self.template_embedding[tokenized_prompt_indices].type(self.dtype)
-               if tokenized_prompt_indices.max() >= self.template_embedding.size(0):
-                   raise IndexError(f"Token index out of range: {tokenized_prompt_indices.max()}, "
-                                    f"valid max: {self.template_embedding.size(0) - 1}")
+       # Generate prompt texts
+       prompt_texts = [
+           self.ctx_template.format(
+               color=feat.get("color", "unknown"),
+               type=feat.get("type", "vehicle"),
+               camera_id=feat.get("camera_id", "unknown")
+           ) for feat in features
+       ]
 
-            # Safely print tensor details
-            print(f"label shape: {label.shape}, values: {label.tolist() if label.numel() < 20 else 'Too many to display'}")
-            print(f"Valid index range: [0, {self.cls_ctx.size(0) - 1}]")
-            print(f"self.cls_ctx size: {self.cls_ctx.size()}, prompt_embedding shape: {prompt_embedding.shape}")
-   
-            # Add assertions to catch out-of-bounds errors early
-            label = torch.clamp(label, min=0, max=self.cls_ctx.size(0) - 1)
-            assert label.max() < self.cls_ctx.size(0), f"Invalid label index: {label.max()}, valid max: {self.cls_ctx.size(0) - 1}"
-            assert label.min() >= 0, f"Invalid label index: {label.min()}, valid min: 0"
-            assert not torch.isnan(label).any(), "NaN detected in label!"
-            assert not torch.isnan(self.cls_ctx).any(), "NaN detected in cls_ctx!"
+       # Tokenize prompts
+       tokenized_prompts = clip.tokenize(prompt_texts).to(self.clip_model.device)  # Shape: (batch_size, token_length)
 
+       # Encode prompts using CLIP's text encoder
+       with torch.no_grad():
+           text_embeddings = self.clip_model.encode_text(tokenized_prompts)  # Shape: (batch_size, embedding_dim)
 
-            # Add learnable class-specific context embeddings
-            cls_ctx = self.cls_ctx[label]  # Shape: (4, ctx_dim)
-            prompt_embedding = torch.cat([prompt_embedding, cls_ctx], dim=0)
+       # Retrieve class-specific context embeddings
+       cls_ctx = self.cls_ctx[labels]  # Shape: (batch_size, 4, ctx_dim)
 
-            # Pad to ensure total length is 77 tokens
-            if self.pad_length > 0:
-                pad_tokens = torch.zeros(self.pad_length, prompt_embedding.size(-1)).to(prompt_embedding.device)
-                prompt_embedding = torch.cat([prompt_embedding, pad_tokens], dim=0)
+       # Expand text embeddings to match cls_ctx
+       text_embeddings_expanded = text_embeddings.unsqueeze(1)  # Shape: (batch_size, 1, embedding_dim)
 
-            batch_prompts.append(prompt_embedding)
-        
-        # Combine all prompts into a batch
-        batch_prompts = torch.stack(batch_prompts, dim=0)
-        return batch_prompts
+       # Concatenate text embeddings with class-specific context
+       combined_embeddings = torch.cat([text_embeddings_expanded, cls_ctx], dim=1)  # Shape: (batch_size, 5, embedding_dim)
+
+       # Pad the combined embeddings to match CLIP's token size
+       if self.pad_length > 0:
+           pad_embeddings = torch.zeros(batch_size, self.pad_length, combined_embeddings.size(-1), device=combined_embeddings.device)
+           combined_embeddings = torch.cat([combined_embeddings, pad_embeddings], dim=1)  # Shape: (batch_size, 77, embedding_dim)
+
+       return combined_embeddings
 
     #     super().__init__()
     #     if dataset_name == "VehicleID" or dataset_name == "veri":
