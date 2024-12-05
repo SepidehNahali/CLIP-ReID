@@ -111,6 +111,7 @@ class build_transformer(nn.Module):
         vehicle_features = load_vehicle_features(label_file, color_file, type_file, camera_file)
         print("!!!!!!!!!!!!!!!!!!!!!!!build_transformer!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         print('vehicle_features',vehicle_features)
+        print('vehicle_features_keys',vehicle_features.keys)
         self.prompt_learner = PromptLearner(num_classes, 'veri', clip_model.dtype, clip_model.token_embedding, vehicle_features)
         self.text_encoder = TextEncoder(clip_model)
 
@@ -213,6 +214,8 @@ class PromptLearner(nn.Module):
        print(f"  Number of classes: {num_class}")
        print(f"  Dataset name: {dataset_name}")
        print(f"  Data type: {dtype}")
+       print(f"Type of vehicle_features: {type(vehicle_features)}")
+
        print(f"  Number of vehicle features: {len(vehicle_features)}")
        print(f"  CLIP model: {clip_model}")
 
