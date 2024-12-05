@@ -205,7 +205,8 @@ class PromptLearner(nn.Module):
 
    def __init__(self, num_class, dataset_name, dtype, vehicle_features, clip_model):
        super().__init__()
-       
+       import clip
+
        self.vehicle_features = vehicle_features
        self.clip_model = clip_model
        self.dtype = dtype
