@@ -209,6 +209,13 @@ class PromptLearner(nn.Module):
        self.dtype = dtype
        self.num_class = num_class
 
+       print(f"Initializing PromptLearner with:")
+       print(f"  Number of classes: {num_class}")
+       print(f"  Dataset name: {dataset_name}")
+       print(f"  Data type: {dtype}")
+       print(f"  Number of vehicle features: {len(vehicle_features)}")
+       print(f"  CLIP model: {clip_model}")
+
        # Define prompt template
        if dataset_name.lower() in ["vehicleid", "veri"]:
            self.ctx_template = "A photo of a {color} {type} vehicle captured by camera {camera_id}."
@@ -226,61 +233,76 @@ class PromptLearner(nn.Module):
        self.n_cls_ctx = 4  # Number of learnable tokens per class
        self.pad_length = self.prompt_length - self.n_cls_ctx  # Remaining space for CLIP tokens
 
-   def forward(self, labels):
-       """
-       labels: Tensor of shape (batch_size,)
-       Returns:
-           batch_prompts: Tensor of shape (batch_size, prompt_length, embedding_dim)
-       """
-       batch_size = labels.size(0)
+def forward(self, labels):
+    """
+    labels: Tensor of shape (batch_size,)
+    Returns:
+        batch_prompts: Tensor of shape (batch_size, prompt_length, embedding_dim)
+    """
+    print(f"\nForward pass started.")
+    print(f"  Input labels shape: {labels.shape}, dtype: {labels.dtype}")
+    print(f"  Input labels: {labels}")
 
-       # Clamp labels to valid range
-       labels = labels.clamp(min=0, max=self.num_class - 1)
+    batch_size = labels.size(0)
 
-       # Convert labels to zero-padded strings
-       label_strs = [f"{label.item():04d}" for label in labels]
+    # Clamp labels
+    labels = labels.clamp(min=0, max=self.num_class - 1)
+    print(f"  Clamped labels: {labels}")
 
-       # Retrieve features for each label
-       features = []
-       for label_str in label_strs:
-           feature = self.vehicle_features.get(label_str, {
-               "color": "unknown",
-               "type": "vehicle",
-               "camera_id": "unknown"
-           })
-           features.append(feature)
+    # Convert labels to zero-padded strings
+    label_strs = [f"{label.item():04d}" for label in labels]
+    print(f"  Converted label strings: {label_strs}")
 
-       # Generate prompt texts
-       prompt_texts = [
-           self.ctx_template.format(
-               color=feat.get("color", "unknown"),
-               type=feat.get("type", "vehicle"),
-               camera_id=feat.get("camera_id", "unknown")
-           ) for feat in features
-       ]
+    # Retrieve features for each label
+    features = []
+    for label_str in label_strs:
+        feature = self.vehicle_features.get(label_str, {
+            "color": "unknown",
+            "type": "vehicle",
+            "camera_id": "unknown"
+        })
+        features.append(feature)
+    print(f"  Retrieved features: {features}")
 
-       # Tokenize prompts
-       tokenized_prompts = clip.tokenize(prompt_texts).to(self.clip_model.device)  # Shape: (batch_size, token_length)
+    # Generate prompt texts
+    prompt_texts = [
+        self.ctx_template.format(
+            color=feat.get("color", "unknown"),
+            type=feat.get("type", "vehicle"),
+            camera_id=feat.get("camera_id", "unknown")
+        ) for feat in features
+    ]
+    print(f"  Generated prompt texts: {prompt_texts}")
 
-       # Encode prompts using CLIP's text encoder
-       with torch.no_grad():
-           text_embeddings = self.clip_model.encode_text(tokenized_prompts)  # Shape: (batch_size, embedding_dim)
+    # Tokenize prompts
+    tokenized_prompts = clip.tokenize(prompt_texts).to(self.clip_model.device)
+    print(f"  Tokenized prompts shape: {tokenized_prompts.shape}, dtype: {tokenized_prompts.dtype}")
+    print(f"  Tokenized prompts: {tokenized_prompts}")
 
-       # Retrieve class-specific context embeddings
-       cls_ctx = self.cls_ctx[labels]  # Shape: (batch_size, 4, ctx_dim)
+    # Encode prompts using CLIP's text encoder
+    with torch.no_grad():
+        text_embeddings = self.clip_model.encode_text(tokenized_prompts)
+    print(f"  Text embeddings shape: {text_embeddings.shape}, dtype: {text_embeddings.dtype}")
 
-       # Expand text embeddings to match cls_ctx
-       text_embeddings_expanded = text_embeddings.unsqueeze(1)  # Shape: (batch_size, 1, embedding_dim)
+    # Retrieve class-specific context embeddings
+    cls_ctx = self.cls_ctx[labels]
+    print(f"  Class-specific context embeddings shape: {cls_ctx.shape}, dtype: {cls_ctx.dtype}")
 
-       # Concatenate text embeddings with class-specific context
-       combined_embeddings = torch.cat([text_embeddings_expanded, cls_ctx], dim=1)  # Shape: (batch_size, 5, embedding_dim)
+    # Expand text embeddings
+    text_embeddings_expanded = text_embeddings.unsqueeze(1)
+    print(f"  Expanded text embeddings shape: {text_embeddings_expanded.shape}")
 
-       # Pad the combined embeddings to match CLIP's token size
-       if self.pad_length > 0:
-           pad_embeddings = torch.zeros(batch_size, self.pad_length, combined_embeddings.size(-1), device=combined_embeddings.device)
-           combined_embeddings = torch.cat([combined_embeddings, pad_embeddings], dim=1)  # Shape: (batch_size, 77, embedding_dim)
+    # Concatenate embeddings
+    combined_embeddings = torch.cat([text_embeddings_expanded, cls_ctx], dim=1)
+    print(f"  Combined embeddings shape (before padding): {combined_embeddings.shape}")
 
-       return combined_embeddings
+    # Pad the combined embeddings to match CLIP's token size
+    if self.pad_length > 0:
+        pad_embeddings = torch.zeros(batch_size, self.pad_length, combined_embeddings.size(-1), device=combined_embeddings.device)
+        combined_embeddings = torch.cat([combined_embeddings, pad_embeddings], dim=1)
+    print(f"  Final combined embeddings shape: {combined_embeddings.shape}, dtype: {combined_embeddings.dtype}")
+
+    return combined_embeddings
 
     #     super().__init__()
     #     if dataset_name == "VehicleID" or dataset_name == "veri":
