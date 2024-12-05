@@ -216,9 +216,14 @@ class PromptLearner(nn.Module):
        print(f"  Data type: {dtype}")
        print(f"Type of vehicle_features: {type(vehicle_features)}")
 
-       print(f"  Number of vehicle features: {len(vehicle_features)}")
+        if isinstance(vehicle_features, nn.Embedding):
+            num_embeddings, embedding_dim = vehicle_features.weight.shape
+            print(f"  Vehicle features: {num_embeddings} embeddings with dimension {embedding_dim}")
+        else:
+            print(f"  Number of vehicle features: {len(vehicle_features)}")
        print(f"  CLIP model: {clip_model}")
-
+        if isinstance(vehicle_features, nn.Embedding):
+            print(f"Embedding shape: {vehicle_features.weight.shape}")
        # Define prompt template
        if dataset_name.lower() in ["vehicleid", "veri"]:
            self.ctx_template = "A photo of a {color} {type} vehicle captured by camera {camera_id}."
@@ -256,7 +261,11 @@ def forward(self, labels):
 
     default_features = {"color": "unknown", "type": "vehicle", "camera_id": "unknown"}
     label_str = f"{label.item():04d}"
-    features = vehicle_features.get(label_str, default_features)  # Use default if label_str is missing
+    if isinstance(vehicle_features, nn.Embedding):
+        features = vehicle_features(torch.tensor([label], device=vehicle_features.weight.device)).squeeze(0)
+        print(f"Retrieved embedding for label {label.item()}: {features}")
+    else:
+        features = vehicle_features.get(label_str, default_features)
 
     # Generate prompt texts
     prompt_texts = [
