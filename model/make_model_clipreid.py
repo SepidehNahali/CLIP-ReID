@@ -3,7 +3,6 @@ import torch.nn as nn
 import numpy as np
 from .clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
 from utils.dataset_utils import load_vehicle_features
-import clip
 _tokenizer = _Tokenizer()
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 
@@ -205,8 +204,6 @@ class PromptLearner(nn.Module):
 
    def __init__(self, num_class, dataset_name, dtype, vehicle_features, clip_model):
        super().__init__()
-       import clip
-
        self.vehicle_features = vehicle_features
        self.clip_model = clip_model
        self.dtype = dtype
