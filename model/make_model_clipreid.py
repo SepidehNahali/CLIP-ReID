@@ -253,19 +253,10 @@ def forward(self, labels):
     print(f"  Clamped labels: {labels}")
 
     # Convert labels to zero-padded strings
-    label_strs = [f"{label.item():04d}" for label in labels]
-    print(f"  Converted label strings: {label_strs}")
 
-    # Retrieve features for each label
-    features = []
-    for label_str in label_strs:
-        feature = self.vehicle_features.get(label_str, {
-            "color": "unknown",
-            "type": "vehicle",
-            "camera_id": "unknown"
-        })
-        features.append(feature)
-    print(f"  Retrieved features: {features}")
+    default_features = {"color": "unknown", "type": "vehicle", "camera_id": "unknown"}
+    label_str = f"{label.item():04d}"
+    features = vehicle_features.get(label_str, default_features)  # Use default if label_str is missing
 
     # Generate prompt texts
     prompt_texts = [
