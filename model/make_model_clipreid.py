@@ -200,46 +200,41 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
     return model
 
 
-
 class PromptLearner(nn.Module):
+    def __init__(self, num_class, dataset_name, dtype, vehicle_features, clip_model):
+        super().__init__()
+        self.vehicle_features = vehicle_features
+        self.clip_model = clip_model
+        self.dtype = dtype
+        self.num_class = num_class
 
-   def __init__(self, num_class, dataset_name, dtype, vehicle_features, clip_model):
-       super().__init__()
-       self.vehicle_features = vehicle_features
-       self.clip_model = clip_model
-       self.dtype = dtype
-       self.num_class = num_class
+        print(f"Initializing PromptLearner with:")
+        print(f"  Number of classes: {num_class}")
+        print(f"  Dataset name: {dataset_name}")
+        print(f"  Data type: {dtype}")
+        print(f"Type of vehicle_features: {type(vehicle_features)}")
 
-       print(f"Initializing PromptLearner with:")
-       print(f"  Number of classes: {num_class}")
-       print(f"  Dataset name: {dataset_name}")
-       print(f"  Data type: {dtype}")
-       print(f"Type of vehicle_features: {type(vehicle_features)}")
-
-       if isinstance(vehicle_features, nn.Embedding):
+        if isinstance(vehicle_features, nn.Embedding):
             num_embeddings, embedding_dim = vehicle_features.weight.shape
             print(f"  Vehicle features: {num_embeddings} embeddings with dimension {embedding_dim}")
-       else:
+        else:
             print(f"  Number of vehicle features: {len(vehicle_features)}")
-       print(f"  CLIP model: {clip_model}")
-        if isinstance(vehicle_features, nn.Embedding):
-            print(f"Embedding shape: {vehicle_features.weight.shape}")
-       # Define prompt template
-       if dataset_name.lower() in ["vehicleid", "veri"]:
-           self.ctx_template = "A photo of a {color} {type} vehicle captured by camera {camera_id}."
-       else:
-           self.ctx_template = "A photo of a person."
 
-       # Learnable class-specific context embeddings
-       # Assuming CLIP's text projection dimension is consistent
-       ctx_dim = self.clip_model.text_projection.shape[1]  # Adjust based on actual CLIP model
-       self.cls_ctx = nn.Parameter(torch.empty(num_class, 4, ctx_dim))  # 4 learnable tokens per class
-       nn.init.normal_(self.cls_ctx, std=0.02)  # Initialize learnable embeddings
+        # Define prompt template
+        if dataset_name.lower() in ["vehicleid", "veri"]:
+            self.ctx_template = "A photo of a {color} {type} vehicle captured by camera {camera_id}."
+        else:
+            self.ctx_template = "A photo of a person."
 
-       # Padding length to match CLIP's token size (77)
-       self.prompt_length = 77
-       self.n_cls_ctx = 4  # Number of learnable tokens per class
-       self.pad_length = self.prompt_length - self.n_cls_ctx  # Remaining space for CLIP tokens
+        # Learnable class-specific context embeddings
+        ctx_dim = self.clip_model.text_projection.shape[1]  # Adjust based on actual CLIP model
+        self.cls_ctx = nn.Parameter(torch.empty(num_class, 4, ctx_dim))  # 4 learnable tokens per class
+        nn.init.normal_(self.cls_ctx, std=0.02)
+
+        # Padding length to match CLIP's token size (77)
+        self.prompt_length = 77
+        self.n_cls_ctx = 4  # Number of learnable tokens per class
+        self.pad_length = self.prompt_length - self.n_cls_ctx
 
 def forward(self, labels):
     """
