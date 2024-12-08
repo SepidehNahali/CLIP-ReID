@@ -220,7 +220,7 @@ class PromptLearner(nn.Module):
 
         tokenized_prompts = clip.tokenize(ctx_init).cuda() 
         with torch.no_grad():
-            embedding = clip_model.token_embedding(tokenized_prompts).type(dtype)
+            embedding = token_embedding(tokenized_prompts).type(dtype) 
         self.tokenized_prompts = tokenized_prompts  # torch.Tensor
 
         # Define context dimensions
