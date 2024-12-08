@@ -202,42 +202,40 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
 class PromptLearner(nn.Module):
     def __init__(self, num_class, dataset_name, dtype, vehicle_features, clip_model):
         super().__init__()
-        self.vehicle_features = vehicle_features  # Should be a dict or dataset mapping IDs to attributes
+        self.vehicle_features = vehicle_features
         self.clip_model = clip_model
         self.dtype = dtype
         self.num_class = num_class
 
-        # Static parts of the prompt
-        self.prefix_text = "A photo of a"
-        self.suffix_text = "vehicle captured by camera"
+        # Define prompt template
+        if dataset_name.lower() in ["vehicleid", "veri"]:
+            ctx_init = "A photo of a {color} {type} vehicle captured by camera {camera_id}"
+        else:
+            ctx_init = "A photo of a person."
 
-        # Precompute prefix and suffix embeddings
-        self.token_prefix = self._embed_text(self.prefix_text)
-        self.token_suffix = self._embed_text(self.suffix_text)
+        ctx_init = ctx_init.replace("_", " ")
+        # Replace placeholders with generic tokens (e.g., 'X')
+        ctx_init = ctx_init.replace("{color}", "{color} X").replace("{type}", "{type} X").replace("{camera_id}", "{camera_id} X")
+        n_ctx = 3
 
-        # Define the number of learnable tokens for dynamic attributes (color, type, camera_id)
-        self.n_ctx = 3
-        self.ctx_dim = 512
-        self.cls_ctx = nn.Parameter(torch.empty(num_class, self.n_ctx, self.ctx_dim, dtype=dtype))
-        nn.init.normal_(self.cls_ctx, std=0.02)
-
-    def _embed_text(self, text):
-        """Helper function to tokenize and embed a static text using CLIP."""
-        tokenized_text = clip.tokenize([text]).cuda()
+        tokenized_prompts = clip.tokenize(ctx_init).cuda() 
         with torch.no_grad():
-            embedding = self.clip_model.token_embedding(tokenized_text).type(self.dtype)
-        return embedding[:, :, :]
+            embedding = clip_model.token_embedding(tokenized_prompts).type(dtype)
+        self.tokenized_prompts = tokenized_prompts  # torch.Tensor
 
-    def _embed_dynamic_attributes(self, colors, types, camera_ids):
-        """Dynamically embed the color, type, and camera_id tokens."""
-        batch_size = len(colors)
-        dynamic_texts = [f"{color} {type_} {camera_id}" for color, type_, camera_id in zip(colors, types, camera_ids)]
-        tokenized_texts = clip.tokenize(dynamic_texts).cuda()
+        # Define context dimensions
+        n_cls_ctx = 6  # Number of learnable placeholders: {color}, {type}, {camera_id}
+        cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
+        nn.init.normal_(cls_vectors, std=0.02)
+        self.cls_ctx = nn.Parameter(cls_vectors) 
+
         
-        with torch.no_grad():
-            dynamic_embeddings = self.clip_model.token_embedding(tokenized_texts).type(self.dtype)
-        
-        return dynamic_embeddings  # Shape: (batch_size, token_length, embedding_dim)
+        # Slice the prefix and suffix embeddings
+        self.register_buffer("token_prefix", embedding[:, :n_ctx + 1, :])  
+        self.register_buffer("token_suffix", embedding[:, n_ctx + n_cls_ctx -1 : n_ctx + n_cls_ctx + n_ctx - 1, :])  
+        self.num_class = num_class
+        self.n_cls_ctx = n_cls_ctx
+
 
     def forward(self, labels):
         """
@@ -245,28 +243,16 @@ class PromptLearner(nn.Module):
         Returns:
             batch_prompts: Tensor of shape (batch_size, prompt_length, embedding_dim)
         """
-        # Clamp labels to ensure valid indices
         labels = labels.clamp(min=0, max=self.num_class - 1)
 
-        # Retrieve vehicle features (color, type, camera_id) for each label
-        features = [self.vehicle_features[label.item()] for label in labels]
-        colors = [feat["color"] for feat in features]
-        types = [feat["type"] for feat in features]
-        camera_ids = [feat["camera_id"] for feat in features]
-
-        # Embed the dynamic attributes (color, type, camera_id)
-        dynamic_embeddings = self._embed_dynamic_attributes(colors, types, camera_ids)
-
-        # Retrieve learnable context embeddings
+        # Retrieve class-specific context embeddings
         cls_ctx = self.cls_ctx[labels]  # Shape: (batch_size, n_ctx, ctx_dim)
+        b = labels.shape[0]
+        prefix = self.token_prefix.expand(b, -1, -1)  # Shape: (batch_size, prefix_length, ctx_dim)
+        suffix = self.token_suffix.expand(b, -1, -1)  # Shape: (batch_size, suffix_length, ctx_dim)
 
-        # Expand prefix and suffix to match batch size
-        batch_size = labels.shape[0]
-        prefix = self.token_prefix.expand(batch_size, -1, -1)
-        suffix = self.token_suffix.expand(batch_size, -1, -1)
-
-        # Combine prefix, learnable context, dynamic attributes, and suffix
-        prompts = torch.cat([prefix, cls_ctx, dynamic_embeddings, suffix], dim=1)
+        # Concatenate prefix, learnable context, and suffix
+        prompts = torch.cat([prefix, cls_ctx, suffix], dim=1)
 
         return prompts
 
