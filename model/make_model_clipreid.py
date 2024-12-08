@@ -274,7 +274,7 @@ class PromptLearner(nn.Module):
     
             # Embed the dynamic context
             with torch.no_grad():
-                dynamic_context_embedding = self.token_embedding(tokenized_context).type(self.cls_ctx.dtype)
+                dynamic_context_embedding = token_embedding(tokenized_context).type(self.cls_ctx.dtype)
     
             dynamic_contexts.append(dynamic_context_embedding)
     
