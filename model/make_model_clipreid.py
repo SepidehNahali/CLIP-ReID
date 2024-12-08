@@ -206,6 +206,11 @@ class PromptLearner(nn.Module):
         super().__init__()
         self.token_embedding = token_embedding  # Store as an instance attribute
         self.vehicle_features = vehicle_features
+        # Create a list of vehicle IDs from vehicle_features keys
+        self.vehicle_ids = list(vehicle_features.keys())
+        
+        # Debug print to check the mapping
+        print(f"Vehicle IDs mapping: {self.vehicle_ids}")
 
         # Define prompt template
         if dataset_name.lower() in ["vehicleid", "veri"]:
@@ -258,9 +263,10 @@ class PromptLearner(nn.Module):
     
         for i, label in enumerate(labels):
             # Retrieve vehicle-specific features
-            vehicle_id = label.item()
+            vehicle_id = self.vehicle_ids[label.item()]
+
             features = self.vehicle_features.get(
-                str(vehicle_id), {'color': 'unknown', 'type': 'unknown', 'camera_id': 'unknown'}
+                vehicle_id, {'color': 'unknown', 'type': 'unknown', 'camera_id': 'unknown'}
             )
     
             # Debug print to ensure features are correct
