@@ -244,7 +244,7 @@ class PromptLearner(nn.Module):
         print(f"Token suffix shape: {self.token_suffix.shape}")
 
 
-     def forward(self, labels):
+    def forward(self, labels):
         """
         labels: Tensor of shape (batch_size,)
         Returns:
