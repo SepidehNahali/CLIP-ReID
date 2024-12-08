@@ -218,11 +218,14 @@ class PromptLearner(nn.Module):
         # Replace placeholders with generic tokens (e.g., 'X')
         ctx_init = ctx_init.replace("{color}", "{color} X").replace("{type}", "{type} X").replace("{camera_id}", "{camera_id} X")
         n_ctx = 3
+        print(f"Initialized context template: {ctx_init}")
 
         tokenized_prompts = clip.tokenize(ctx_init).cuda() 
         with torch.no_grad():
             embedding = token_embedding(tokenized_prompts).type(dtype) 
         self.tokenized_prompts = tokenized_prompts  # torch.Tensor
+        print(f"Tokenized prompts shape: {tokenized_prompts.shape}")
+        print(f"Prompt embedding shape: {embedding.shape}")
 
         # Define context dimensions
         n_cls_ctx = 6  # Number of learnable placeholders: {color}, {type}, {camera_id}
@@ -230,35 +233,69 @@ class PromptLearner(nn.Module):
         nn.init.normal_(cls_vectors, std=0.02)
         self.cls_ctx = nn.Parameter(cls_vectors) 
 
-        
+        print(f"Initialized learnable context shape: {cls_vectors.shape}")
+
         # Slice the prefix and suffix embeddings
         self.register_buffer("token_prefix", embedding[:, :n_ctx + 1, :])  
         self.register_buffer("token_suffix", embedding[:, n_ctx + n_cls_ctx -1 : n_ctx + n_cls_ctx + n_ctx - 1, :])  
         self.num_class = num_class
         self.n_cls_ctx = n_cls_ctx
+        print(f"Token prefix shape: {self.token_prefix.shape}")
+        print(f"Token suffix shape: {self.token_suffix.shape}")
 
 
-    def forward(self, labels):
+     def forward(self, labels):
         """
         labels: Tensor of shape (batch_size,)
         Returns:
             batch_prompts: Tensor of shape (batch_size, prompt_length, embedding_dim)
         """
         labels = labels.clamp(min=0, max=self.num_class - 1)
-
-        # Retrieve class-specific context embeddings
-        cls_ctx = self.cls_ctx[labels]  # Shape: (batch_size, n_ctx, ctx_dim)
-        b = labels.shape[0]
-        prefix = self.token_prefix.expand(b, -1, -1)  # Shape: (batch_size, prefix_length, ctx_dim)
-        suffix = self.token_suffix.expand(b, -1, -1)  # Shape: (batch_size, suffix_length, ctx_dim)
-
-        # Concatenate prefix, learnable context, and suffix
-        prompts = torch.cat([prefix, cls_ctx, suffix], dim=1)
+        batch_size = labels.shape[0]
+    
+        # Prepare list to hold context embeddings
+        dynamic_contexts = []
+    
+        for i, label in enumerate(labels):
+            # Retrieve vehicle-specific features
+            vehicle_id = label.item()
+            features = self.vehicle_features.get(
+                str(vehicle_id), {'color': 'unknown', 'type': 'unknown', 'camera_id': 'unknown'}
+            )
+    
+            # Debug print to ensure features are correct
+            print(f"Vehicle ID: {vehicle_id}, Features: {features}")
+    
+            # Create the dynamic context string (e.g., "yellow X hatchback X c019 X")
+            dynamic_str = f"{features['color']} X {features['type']} X {features['camera_id']} X"
+    
+            # Tokenize the dynamic context
+            tokenized_context = clip.tokenize(dynamic_str).cuda()
+    
+            # Embed the dynamic context
+            with torch.no_grad():
+                dynamic_context_embedding = self.token_embedding(tokenized_context).type(self.cls_ctx.dtype)
+    
+            dynamic_contexts.append(dynamic_context_embedding)
+    
+        # Stack the dynamic contexts
+        dynamic_contexts = torch.cat(dynamic_contexts, dim=0)  # Shape: (batch_size, dynamic_length, embedding_dim)
+    
+        # Expand prefix and suffix to match batch size
+        prefix = self.token_prefix.expand(batch_size, -1, -1)
+        suffix = self.token_suffix.expand(batch_size, -1, -1)
+    
+        # Concatenate prefix, dynamic context, and suffix
+        prompts = torch.cat([prefix, dynamic_contexts, suffix], dim=1)
+    
+        # Pad to ensure prompts have length 77
         pad_length = 77 - prompts.size(1)
         if pad_length > 0:
-            padding = torch.zeros((prompts.size(0), pad_length, prompts.size(2)), dtype=prompts.dtype).cuda()
+            padding = torch.zeros((batch_size, pad_length, prompts.size(2)), dtype=prompts.dtype).cuda()
             prompts = torch.cat([prompts, padding], dim=1)
+            print(f"Added padding: new prompts shape {prompts.shape}")
 
+        print(f"Concatenated prompts shape: {prompts.shape}")
         return prompts
 
 
