@@ -214,15 +214,15 @@ class PromptLearner(nn.Module):
 
         # Define prompt template
         if dataset_name.lower() in ["vehicleid", "veri"]:
-            ctx_init = "A {color} {type} vehicle captured by camera {camera_id}"
+            ctx_init = "A {color} {type} vehicle captured by camera"
         else:
             ctx_init = "A photo of a person."
         ctx_dim = 512
 
         ctx_init = ctx_init.replace("_", " ")
         # Replace placeholders with generic tokens (e.g., 'X')
-        ctx_init = ctx_init.replace("{color}", "{color} X").replace("{type}", "{type} X").replace("{camera_id}", "{camera_id} X")
-        n_ctx = 3
+        ctx_init = ctx_init.replace("{color}", "{color} X").replace("{type}", "{type} X")
+        n_ctx = 4
         print(f"Initialized context template: {ctx_init}")
 
         tokenized_prompts = clip.tokenize(ctx_init).cuda() 
@@ -233,7 +233,7 @@ class PromptLearner(nn.Module):
         print(f"Prompt embedding shape: {embedding.shape}")
 
         # Define context dimensions
-        n_cls_ctx = 6  # Number of learnable placeholders: {color}, {type}, {camera_id}
+        n_cls_ctx = 4  # Number of learnable placeholders: {color}, {type}
         cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
         nn.init.normal_(cls_vectors, std=0.02)
         self.cls_ctx = nn.Parameter(cls_vectors) 
@@ -266,14 +266,14 @@ class PromptLearner(nn.Module):
             vehicle_id = self.vehicle_ids[label.item()]
 
             features = self.vehicle_features.get(
-                vehicle_id, {'color': 'unknown', 'type': 'unknown', 'camera_id': 'unknown'}
+                vehicle_id, {'color': 'unknown', 'type': 'unknown'}
             )
     
             # Debug print to ensure features are correct
             print(f"Vehicle ID: {vehicle_id}, Features: {features}")
     
-            # Create the dynamic context string (e.g., "yellow X hatchback X c019 X")
-            dynamic_str = f"{features['color']} X {features['type']} X {features['camera_id']} X"
+            # Create the dynamic context string (e.g., "yellow X hatchback X ")
+            dynamic_str = f"{features['color']} X {features['type']} X "
     
             # Tokenize the dynamic context
             tokenized_context = clip.tokenize(dynamic_str).cuda()
@@ -294,17 +294,6 @@ class PromptLearner(nn.Module):
         # Concatenate prefix, dynamic context, and suffix
         prompts = torch.cat([prefix, dynamic_contexts, suffix], dim=1)
     
-        # Ensure the prompts length does not exceed 77 tokens
-        # max_length = 77
-        # if prompts.size(1) > max_length:
-        #     prompts = prompts[:, :max_length, :]
-        #     print(f"Trimmed prompts to length: {prompts.shape[1]}")
-        
-        # # Pad if necessary to reach 77 tokens
-        # pad_length = max_length - prompts.size(1)
-        # if pad_length > 0:
-        #     padding = torch.zeros((batch_size, pad_length, prompts.size(2)), dtype=prompts.dtype).cuda()
-
         # Ensure that the prompt length is 77 (or any other required length)
         pad_length = 77 - prompts.size(1)
         if pad_length > 0:
