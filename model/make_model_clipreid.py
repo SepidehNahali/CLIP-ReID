@@ -113,6 +113,8 @@ class build_transformer(nn.Module):
         print('vehicle_features',vehicle_features)
         print('vehicle_features_keys',vehicle_features.keys())
         self.prompt_learner = PromptLearner(num_classes, 'veri', clip_model.dtype, clip_model.token_embedding, vehicle_features)
+        # Assuming clip_model is the full CLIP model object, not just token_embedding
+
         self.text_encoder = TextEncoder(clip_model)
 
     def forward(self, x = None, label=None, get_image = False, get_text = False, cam_label= None, view_label=None):
@@ -200,7 +202,8 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
     return model
 
 class PromptLearner(nn.Module):
-    def __init__(self, num_class, dataset_name, dtype, vehicle_features, clip_model):
+    def __init__(self, num_class, dataset_name, dtype, clip_model, vehicle_features):
+
         super().__init__()
         self.vehicle_features = vehicle_features
         self.clip_model = clip_model
