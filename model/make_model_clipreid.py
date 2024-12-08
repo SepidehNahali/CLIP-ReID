@@ -275,7 +275,7 @@ class PromptLearner(nn.Module):
             # Embed the dynamic context
             with torch.no_grad():
                 dynamic_context_embedding = token_embedding(tokenized_context).type(self.cls_ctx.dtype)
-    
+                                            
             dynamic_contexts.append(dynamic_context_embedding)
     
         # Stack the dynamic contexts
@@ -292,7 +292,6 @@ class PromptLearner(nn.Module):
         pad_length = 77 - prompts.size(1)
         if pad_length > 0:
             padding = torch.zeros((batch_size, pad_length, prompts.size(2)), dtype=prompts.dtype).cuda()
-            prompts = torch.cat([prompts, padding], dim=1)
             print(f"Added padding: new prompts shape {prompts.shape}")
 
         print(f"Concatenated prompts shape: {prompts.shape}")
