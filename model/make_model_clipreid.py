@@ -211,6 +211,8 @@ class PromptLearner(nn.Module):
         
         # Debug print to check the mapping
         print(f"Vehicle IDs mapping: {self.vehicle_ids}")
+        num_vehicle_ids = len(self.vehicle_ids)
+        print(f"Number of vehicle IDs: {num_vehicle_ids}")
 
         # Define prompt template
         if dataset_name.lower() in ["vehicleid", "veri"]:
@@ -255,15 +257,22 @@ class PromptLearner(nn.Module):
         Returns:
             batch_prompts: Tensor of shape (batch_size, prompt_length, embedding_dim)
         """
-        labels = labels.clamp(min=0, max=self.num_class - 1)
+        labels = labels.clamp(min=0, max=len(self.vehicle_ids) - 1)
         batch_size = labels.shape[0]
-    
+
         # Prepare list to hold context embeddings
         dynamic_contexts = []
     
         for i, label in enumerate(labels):
+            index = label.item()
+            if index >= len(self.vehicle_ids):
+                print(f"Warning: label {index} is out of range for vehicle_ids.")
+                continue  # Skip this iteration if the label is invalid
+ 
             # Retrieve vehicle-specific features
             vehicle_id = self.vehicle_ids[label.item()]
+            print(f"Labels: {labels}")
+            print(f"Max label: {labels.max()}, Min label: {labels.min()}")
 
             features = self.vehicle_features.get(
                 vehicle_id, {'color': 'unknown', 'type': 'unknown'}
