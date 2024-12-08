@@ -288,10 +288,17 @@ class PromptLearner(nn.Module):
         # Concatenate prefix, dynamic context, and suffix
         prompts = torch.cat([prefix, dynamic_contexts, suffix], dim=1)
     
-        # Pad to ensure prompts have length 77
-        pad_length = 77 - prompts.size(1)
+        # Ensure the prompts length does not exceed 77 tokens
+        max_length = 77
+        if prompts.size(1) > max_length:
+            prompts = prompts[:, :max_length, :]
+            print(f"Trimmed prompts to length: {prompts.shape[1]}")
+        
+        # Pad if necessary to reach 77 tokens
+        pad_length = max_length - prompts.size(1)
         if pad_length > 0:
             padding = torch.zeros((batch_size, pad_length, prompts.size(2)), dtype=prompts.dtype).cuda()
+            prompts = torch.cat([prompts, padding], dim=1)
             print(f"Added padding: new prompts shape {prompts.shape}")
 
         print(f"Concatenated prompts shape: {prompts.shape}")
