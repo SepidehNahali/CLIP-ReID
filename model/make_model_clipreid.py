@@ -206,9 +206,6 @@ class PromptLearner(nn.Module):
 
         super().__init__()
         self.vehicle_features = vehicle_features
-        self.clip_model = clip_model
-        self.dtype = dtype
-        self.num_class = num_class
 
         # Define prompt template
         if dataset_name.lower() in ["vehicleid", "veri"]:
