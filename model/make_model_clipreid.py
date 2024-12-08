@@ -327,9 +327,12 @@ class PromptLearner(nn.Module):
         with torch.no_grad():
             embedding = token_embedding(tokenized_prompts).type(dtype) 
         self.tokenized_prompts = tokenized_prompts  # torch.Tensor
+        print(f"Tokenized prompts shape: {tokenized_prompts.shape}")
+        print(f"Prompt embedding shape: {embedding.shape}")
 
         n_cls_ctx = 4
         cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
+        print(f"Initialized learnable context shape: {cls_vectors.shape}")
         nn.init.normal_(cls_vectors, std=0.02)
         self.cls_ctx = nn.Parameter(cls_vectors) 
 
@@ -341,6 +344,8 @@ class PromptLearner(nn.Module):
         self.register_buffer("token_suffix", embedding[:, n_ctx + 1 + n_cls_ctx: , :])  
         self.num_class = num_class
         self.n_cls_ctx = n_cls_ctx
+        print(f"Token prefix shape: {self.token_prefix.shape}")
+        print(f"Token suffix shape: {self.token_suffix.shape}")
 
     def forward(self, label):
         cls_ctx = self.cls_ctx[label] 
