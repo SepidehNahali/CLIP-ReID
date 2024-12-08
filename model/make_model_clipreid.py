@@ -212,6 +212,7 @@ class PromptLearner(nn.Module):
             ctx_init = "A photo of a {color} {type} vehicle captured by camera {camera_id}"
         else:
             ctx_init = "A photo of a person."
+        ctx_dim = 512
 
         ctx_init = ctx_init.replace("_", " ")
         # Replace placeholders with generic tokens (e.g., 'X')
