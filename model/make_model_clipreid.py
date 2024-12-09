@@ -285,7 +285,10 @@ class PromptLearner(nn.Module):
         
             # Tokenize the dynamic context and ensure it's on the correct device
             tokenized_context = clip.tokenize(dynamic_str, truncate=True).cuda()  # CLIP tokenizer will pad/truncate to 77
-        
+            print(f"Dynamic string: '{dynamic_str}'")
+            print(f"Tokenized context shape: {tokenized_context.shape}")
+            print(f"Tokenized context length: {tokenized_context.shape[1]}")
+
             # Embed the dynamic context
             with torch.no_grad():
                 dynamic_context_embedding = self.token_embedding(tokenized_context).type(self.cls_ctx.dtype)  # Shape: (1, 77, 512)
@@ -311,6 +314,7 @@ class PromptLearner(nn.Module):
             print(f"Added padding: new prompts shape {prompts.shape}")
 
         print(f"Concatenated prompts shape: {prompts.shape}")
+        print(f"Concatenated prompts: {prompts}")
         return prompts
 
 
