@@ -277,7 +277,7 @@ class PromptLearner(nn.Module):
     
             # Create the dynamic context string (e.g., "yellow X hatchback X ")
             dynamic_str = f"{features['color']} X {features['type']} X "
-    
+            print(f"dynamic_str: {dynamic_str}")
             # Tokenize the dynamic context
             tokenized_context = clip.tokenize(dynamic_str).cuda()
     
@@ -308,8 +308,3 @@ class PromptLearner(nn.Module):
         return prompts
 
 
-    #         dim=1,
-    #     ) 
-    #     print(f"Concatenated prompts shape: {prompts.shape}")
-
-    #     return prompts
