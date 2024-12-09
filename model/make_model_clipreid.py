@@ -216,14 +216,11 @@ class PromptLearner(nn.Module):
 
         # Define prompt template
         if dataset_name.lower() in ["vehicleid", "veri"]:
-            ctx_init = "A {color} {type} vehicle captured by camera"
+            ctx_init = "A photo of a {color} X {type} X vehicle."
         else:
-            ctx_init = "A photo of a person."
+            ctx_init = "A photo of a X X X X person."
         ctx_dim = 512
-
         ctx_init = ctx_init.replace("_", " ")
-        # Replace placeholders with generic tokens (e.g., 'X')
-        ctx_init = ctx_init.replace("{color}", "{color} X").replace("{type}", "{type} X")
         n_ctx = 4
         print(f"Initialized context template: {ctx_init}")
 
@@ -243,8 +240,8 @@ class PromptLearner(nn.Module):
         print(f"Initialized learnable context shape: {cls_vectors.shape}")
 
         # Slice the prefix and suffix embeddings
-        self.register_buffer("token_prefix", embedding[:, : 1, :])  
-        self.register_buffer("token_suffix", embedding[:, n_cls_ctx : n_ctx + n_cls_ctx , :])  
+        self.register_buffer("token_prefix", embedding[:, :n_ctx + 1, :])  
+        self.register_buffer("token_suffix", embedding[:, n_ctx + 1 + n_cls_ctx: , :])  
         self.num_class = num_class
         self.n_cls_ctx = n_cls_ctx
         print(f"Token prefix shape: {self.token_prefix.shape}")
@@ -266,17 +263,14 @@ class PromptLearner(nn.Module):
         for i, label in enumerate(labels):
             index = label.item()
             if index >= len(self.vehicle_ids):
-                print(f"Warning: label {index} is out of range for vehicle_ids.")
-                continue  # Skip this iteration if the label is invalid
- 
+                raise ValueError(f"Label {index} is out of range for vehicle_ids.")
+
             # Retrieve vehicle-specific features
             vehicle_id = self.vehicle_ids[label.item()]
             print(f"Labels: {labels}")
             print(f"Max label: {labels.max()}, Min label: {labels.min()}")
 
-            features = self.vehicle_features.get(
-                vehicle_id, {'color': 'unknown', 'type': 'unknown'}
-            )
+            features = self.vehicle_features.get(vehicle_id, {'color': 'unknown', 'type': 'unknown'})
     
             # Debug print to ensure features are correct
             print(f"Vehicle ID: {vehicle_id}, Features: {features}")
@@ -314,53 +308,6 @@ class PromptLearner(nn.Module):
         return prompts
 
 
-    #     super().__init__()
-    #     if dataset_name == "VehicleID" or dataset_name == "veri":
-    #         ctx_init = "A photo of a X X X X vehicle."
-    #     else:
-    #         ctx_init = "A photo of a X X X X person."
-
-    #     ctx_dim = 512
-    #     # use given words to initialize context vectors
-    #     ctx_init = ctx_init.replace("_", " ")
-    #     n_ctx = 4
-        
-    #     tokenized_prompts = clip.tokenize(ctx_init).cuda() 
-    #     with torch.no_grad():
-    #         embedding = token_embedding(tokenized_prompts).type(dtype) 
-    #     self.tokenized_prompts = tokenized_prompts  # torch.Tensor
-    #     print(f"Tokenized prompts shape: {tokenized_prompts.shape}")
-    #     print(f"Prompt embedding shape: {embedding.shape}")
-
-    #     n_cls_ctx = 4
-    #     cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
-    #     print(f"Initialized learnable context shape: {cls_vectors.shape}")
-    #     nn.init.normal_(cls_vectors, std=0.02)
-    #     self.cls_ctx = nn.Parameter(cls_vectors) 
-
-        
-    #     # These token vectors will be saved when in save_model(),
-    #     # but they should be ignored in load_model() as we want to use
-    #     # those computed using the current class names
-    #     self.register_buffer("token_prefix", embedding[:, :n_ctx + 1, :])  
-    #     self.register_buffer("token_suffix", embedding[:, n_ctx + 1 + n_cls_ctx: , :])  
-    #     self.num_class = num_class
-    #     self.n_cls_ctx = n_cls_ctx
-    #     print(f"Token prefix shape: {self.token_prefix.shape}")
-    #     print(f"Token suffix shape: {self.token_suffix.shape}")
-
-    # def forward(self, label):
-    #     cls_ctx = self.cls_ctx[label] 
-    #     b = label.shape[0]
-    #     prefix = self.token_prefix.expand(b, -1, -1) 
-    #     suffix = self.token_suffix.expand(b, -1, -1) 
-            
-    #     prompts = torch.cat(
-    #         [
-    #             prefix,  # (n_cls, 1, dim)
-    #             cls_ctx,     # (n_cls, n_ctx, dim)
-    #             suffix,  # (n_cls, *, dim)
-    #         ],
     #         dim=1,
     #     ) 
     #     print(f"Concatenated prompts shape: {prompts.shape}")
