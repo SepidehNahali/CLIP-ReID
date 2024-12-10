@@ -257,7 +257,7 @@ class PromptLearner(nn.Module):
         # Clamp the labels to avoid out-of-range indices
 
         cls_ctx = self.cls_ctx[labels] 
-        print(f"cls_ctx: {cls_ctx}")
+        print(f"cls_ctx.shape: {cls_ctx.shape}")
         b = labels.shape[0]
         prefix = self.token_prefix.expand(b, -1, -1) 
         suffix = self.token_suffix.expand(b, -1, -1) 
@@ -270,8 +270,11 @@ class PromptLearner(nn.Module):
             ],
             dim=1,
         ) 
+        
         print(f"Labels: {labels}")
-        print(f"Max label: {labels.max()}, Min label: {labels.min()}")
+        print(f"prompts.shape: {prompts.shape}")
+        print(f"prefix.shape: {prefix.shape}")
+        print(f"suffix.shape: {suffix.shape}")
 
         # labels = labels.clamp(min=0, max=len(self.vehicle_ids) - 1)
         # batch_size = labels.shape[0]
