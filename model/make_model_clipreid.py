@@ -285,25 +285,27 @@ class PromptLearner(nn.Module):
             # Tokenize the dynamic context and ensure it's on the correct device
             tokenized_context = clip.tokenize(dynamic_str, truncate=True).cuda()  # CLIP tokenizer will pad/truncate to 77
             print(f"Tokenized context shape: {tokenized_context.shape}")
-            print(f"Tokenized context length: {tokenized_context.shape[1]}")
 
             # Embed the dynamic context
             with torch.no_grad():
                 dynamic_context_embedding = self.token_embedding(tokenized_context).type(self.cls_ctx.dtype)  # Shape: (1, 77, 512)
-        
+                print(f"dynamic_context_embedding.shape: {dynamic_context_embedding.shape}")
+
             # Append the embedding to the list
             dynamic_contexts.append(dynamic_context_embedding)
         
         # Stack the dynamic contexts to create a tensor of shape (batch_size, 77, embedding_dim)
         dynamic_contexts = torch.cat(dynamic_contexts, dim=0)  # Shape: (batch_size, 77, 512)
-
+        print(f"dynamic_contexts.shape: {dynamic_contexts.shape}")
         # Expand prefix and suffix to match batch size
         prefix = self.token_prefix.expand(batch_size, -1, -1)
         suffix = self.token_suffix.expand(batch_size, -1, -1)
-    
+        print(f"prefix shape: {prefix.shape},suffix: {suffix.shape}")
+
         # Concatenate prefix, dynamic context, and suffix
         prompts = torch.cat([prefix, dynamic_contexts, suffix], dim=1)
-    
+        print(f"prompts shape before padding: {prompts.shape}")
+
         # Ensure that the prompt length is 77 (or any other required length)
         pad_length = 77 - prompts.size(1)
         if pad_length > 0:
