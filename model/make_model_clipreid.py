@@ -262,7 +262,8 @@ class PromptLearner(nn.Module):
     
         # Tokenize the batch of dynamic context strings
         tokenized_contexts = clip.tokenize(dynamic_strs).cuda()  # Shape: (batch_size, 77)
-    
+        tokenized_context = tokenized_context[:, :4]  # Keep only the first 4 tokens
+
         # Embed the dynamic contexts in a batch
         with torch.no_grad():
             dynamic_context_embeddings = self.token_embedding(tokenized_contexts).type(self.cls_ctx.dtype)  # Shape: (batch_size, 77, 512)
