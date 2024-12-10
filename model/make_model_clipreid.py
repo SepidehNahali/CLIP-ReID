@@ -246,46 +246,46 @@ class PromptLearner(nn.Module):
         self.n_cls_ctx = n_cls_ctx
         print(f"Token prefix shape: {self.token_prefix.shape}")
         print(f"Token suffix shape: {self.token_suffix.shape}")
-def forward(self, labels):
-    """
-    labels: Tensor of shape (batch_size,)
-    Returns:
-        batch_prompts: Tensor of shape (batch_size, 77, embedding_dim)
-    """
-    batch_size = labels.shape[0]
-
-    # Prepare dynamic contexts for each label
-    dynamic_contexts = []
-
-    for label in labels:
-        index = label.item()
-
-        # Retrieve vehicle-specific features
-        vehicle_id = self.vehicle_ids[index]
-        features = self.vehicle_features.get(vehicle_id, {'color': 'unknown', 'type': 'unknown'})
-
-        # Create dynamic context string (ensuring 4 tokens)
-        dynamic_str = f"{features['color']} X {features['type']} X"
-
-        # Tokenize dynamic string (ensure truncation/padding to 4 tokens)
-        tokenized_context = clip.tokenize(dynamic_str).cuda()  # Shape: (1, 4)
-
-        with torch.no_grad():
-            dynamic_context_embedding = self.token_embedding(tokenized_context).type(self.cls_ctx.dtype)  # Shape: (1, 4, 512)
-
-        dynamic_contexts.append(dynamic_context_embedding)
-
-    # Stack dynamic contexts to shape (batch_size, 4, 512)
-    dynamic_contexts = torch.cat(dynamic_contexts, dim=0)  # Shape: (batch_size, 4, 512)
-
-    # Expand prefix and suffix to match batch size
-    prefix = self.token_prefix.expand(batch_size, -1, -1)  # Shape: (batch_size, 5, 512)
-    suffix = self.token_suffix.expand(batch_size, -1, -1)  # Shape: (batch_size, 68, 512)
-
-    # Concatenate prefix, dynamic context, and suffix
-    prompts = torch.cat([prefix, dynamic_contexts, suffix], dim=1)  # Shape: (batch_size, 77, 512)
-
-    return prompts
+    def forward(self, labels):
+        """
+        labels: Tensor of shape (batch_size,)
+        Returns:
+            batch_prompts: Tensor of shape (batch_size, 77, embedding_dim)
+        """
+        batch_size = labels.shape[0]
+    
+        # Prepare dynamic contexts for each label
+        dynamic_contexts = []
+    
+        for label in labels:
+            index = label.item()
+    
+            # Retrieve vehicle-specific features
+            vehicle_id = self.vehicle_ids[index]
+            features = self.vehicle_features.get(vehicle_id, {'color': 'unknown', 'type': 'unknown'})
+    
+            # Create dynamic context string (ensuring 4 tokens)
+            dynamic_str = f"{features['color']} X {features['type']} X"
+    
+            # Tokenize dynamic string (ensure truncation/padding to 4 tokens)
+            tokenized_context = clip.tokenize(dynamic_str).cuda()  # Shape: (1, 4)
+    
+            with torch.no_grad():
+                dynamic_context_embedding = self.token_embedding(tokenized_context).type(self.cls_ctx.dtype)  # Shape: (1, 4, 512)
+    
+            dynamic_contexts.append(dynamic_context_embedding)
+    
+        # Stack dynamic contexts to shape (batch_size, 4, 512)
+        dynamic_contexts = torch.cat(dynamic_contexts, dim=0)  # Shape: (batch_size, 4, 512)
+    
+        # Expand prefix and suffix to match batch size
+        prefix = self.token_prefix.expand(batch_size, -1, -1)  # Shape: (batch_size, 5, 512)
+        suffix = self.token_suffix.expand(batch_size, -1, -1)  # Shape: (batch_size, 68, 512)
+    
+        # Concatenate prefix, dynamic context, and suffix
+        prompts = torch.cat([prefix, dynamic_contexts, suffix], dim=1)  # Shape: (batch_size, 77, 512)
+    
+        return prompts
 
 
     # def forward(self, labels):
