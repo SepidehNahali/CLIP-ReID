@@ -269,7 +269,8 @@ class PromptLearner(nn.Module):
     
             # Tokenize dynamic string (ensure truncation/padding to 4 tokens)
             tokenized_context = clip.tokenize(dynamic_str).cuda()  # Shape: (1, 4)
-    
+            print(f"tokenized_context: {tokenized_context.shape}")
+
             with torch.no_grad():
                 dynamic_context_embedding = self.token_embedding(tokenized_context).type(self.cls_ctx.dtype)  # Shape: (1, 4, 512)
     
@@ -284,7 +285,14 @@ class PromptLearner(nn.Module):
     
         # Concatenate prefix, dynamic context, and suffix
         prompts = torch.cat([prefix, dynamic_contexts, suffix], dim=1)  # Shape: (batch_size, 77, 512)
-    
+        # Ensure final prompt length is 77
+        pad_length = 77 - prompts.size(1)
+        if pad_length > 0:
+            padding = torch.zeros((prompts.size(0), pad_length, prompts.size(2)), dtype=prompts.dtype).cuda()
+            prompts = torch.cat([prompts, padding], dim=1)
+        elif pad_length < 0:
+            prompts = prompts[:, :77, :]
+
         return prompts
 
 
