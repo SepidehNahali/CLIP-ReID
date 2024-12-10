@@ -258,7 +258,7 @@ class PromptLearner(nn.Module):
 
         cls_ctx = self.cls_ctx[labels] 
         print(f"cls_ctx: {cls_ctx}")
-        b = label.shape[0]
+        b = labels.shape[0]
         prefix = self.token_prefix.expand(b, -1, -1) 
         suffix = self.token_suffix.expand(b, -1, -1) 
             
