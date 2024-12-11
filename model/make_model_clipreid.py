@@ -201,41 +201,120 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
 
     return model
 
+# class PromptLearner(nn.Module):
+#     def __init__(self, num_class, dataset_name, dtype, token_embedding, vehicle_features):
+#         super().__init__()
+        
+#         # Store the vehicle features dictionary
+#         self.vehicle_features = vehicle_features
+
+#         # Set dynamic template depending on the dataset
+#         if dataset_name in ["VehicleID", "veri"]:
+#             self.ctx_init = "A photo of a {color} {type} vehicle."
+#         else:
+#             self.ctx_init = "A photo of a {description} person."
+
+#         self.ctx_dim = 512
+#         self.num_class = num_class
+#         self.n_cls_ctx = 4
+
+#         # Token embedding from the clip_model
+#         self.token_embedding = token_embedding
+
+#         # Initialize a default tokenized prompt for all vehicles
+#         default_prompt = self.ctx_init.format(color="unknown", type="unknown")
+#         self.tokenized_prompts = clip.tokenize(default_prompt).cuda()
+
+#         with torch.no_grad():
+#             embedding = self.token_embedding(self.tokenized_prompts).type(dtype)
+
+#         # Save the prefix and suffix based on the default embedding
+#         self.register_buffer("token_prefix", embedding[:, :self.n_cls_ctx + 1, :])
+#         self.register_buffer("token_suffix", embedding[:, self.n_cls_ctx + 1 + self.n_cls_ctx:, :])
+
+#         # Initialize class-specific context vectors
+#         cls_vectors = torch.empty(num_class, self.n_cls_ctx, self.ctx_dim, dtype=dtype)
+#         nn.init.normal_(cls_vectors, std=0.02)
+#         self.cls_ctx = nn.Parameter(cls_vectors)
+
+#     def forward(self, vehicle_ids):
+#         """
+#         vehicle_ids: a batch of vehicle IDs used to retrieve corresponding features.
+#         """
+#         batch_size = len(vehicle_ids)
+#         dynamic_prompts = []
+
+#         for vehicle_id in vehicle_ids:
+#             # Access the features for each vehicle ID, defaulting to 'unknown' if not found
+#             features = self.vehicle_features.get(vehicle_id, {'color': 'unknown', 'type': 'unknown'})
+#             prompt_text = self.ctx_init.format(**features)
+#             tokenized_prompt = clip.tokenize(prompt_text).cuda()
+#             dynamic_prompts.append(tokenized_prompt)
+
+#         # Stack the tokenized prompts for the batch
+#         tokenized_prompts = torch.cat(dynamic_prompts, dim=0)
+
+#         with torch.no_grad():
+#             embedding = self.token_embedding(tokenized_prompts).type(self.cls_ctx.dtype)
+
+#         # Split the embedding into prefix and suffix parts
+#         prefix = embedding[:, :self.n_cls_ctx + 1, :]
+#         suffix = embedding[:, self.n_cls_ctx + 1 + self.n_cls_ctx:, :]
+
+#         # Retrieve class-specific context vectors for each vehicle ID
+#         cls_ctx = self.cls_ctx[vehicle_ids]  # Assuming vehicle_ids are mapped to class indices
+
+#         # Concatenate prefix, class-specific context, and suffix to form the complete prompt
+#         prompts = torch.cat([prefix, cls_ctx, suffix], dim=1)
+
+#         return prompts
+
+
+import torch
+import torch.nn as nn
+import clip
+
 class PromptLearner(nn.Module):
     def __init__(self, num_class, dataset_name, dtype, token_embedding, vehicle_features):
         super().__init__()
-        
-        # Store the vehicle features dictionary
+        self.token_embedding = token_embedding
         self.vehicle_features = vehicle_features
 
-        # Set dynamic template depending on the dataset
-        if dataset_name in ["VehicleID", "veri"]:
-            self.ctx_init = "A photo of a {color} {type} vehicle."
+        # Define prompt template with placeholders for learnable context
+        if dataset_name.lower() in ["vehicleid", "veri"]:
+            self.ctx_init = "Photo of {color} {type} XXXX vehicle."
         else:
-            self.ctx_init = "A photo of a {description} person."
-
+            self.ctx_init = "A photo of a XXXX person."
+      
+        # Dimensions
         self.ctx_dim = 512
+        self.n_ctx = 4  # Number of learnable tokens (XXXX)
         self.num_class = num_class
-        self.n_cls_ctx = 4
 
-        # Token embedding from the clip_model
-        self.token_embedding = token_embedding
-
-        # Initialize a default tokenized prompt for all vehicles
+        # Tokenize a default prompt to get prefix and suffix
         default_prompt = self.ctx_init.format(color="unknown", type="unknown")
         self.tokenized_prompts = clip.tokenize(default_prompt).cuda()
 
         with torch.no_grad():
             embedding = self.token_embedding(self.tokenized_prompts).type(dtype)
 
-        # Save the prefix and suffix based on the default embedding
-        self.register_buffer("token_prefix", embedding[:, :self.n_cls_ctx + 1, :])
-        self.register_buffer("token_suffix", embedding[:, self.n_cls_ctx + 1 + self.n_cls_ctx:, :])
+        # Save dynamic prefix (everything before 'XXXX') and suffix (everything after 'XXXX')
+        self.register_buffer("token_prefix", embedding[:, :self._find_placeholder_index(embedding), :])
+        self.register_buffer("token_suffix", embedding[:, self._find_placeholder_index(embedding) + self.n_ctx:, :])
 
-        # Initialize class-specific context vectors
-        cls_vectors = torch.empty(num_class, self.n_cls_ctx, self.ctx_dim, dtype=dtype)
+        # Initialize learnable context vectors (for 'XXXX')
+        cls_vectors = torch.empty(num_class, self.n_ctx, self.ctx_dim, dtype=dtype)
         nn.init.normal_(cls_vectors, std=0.02)
         self.cls_ctx = nn.Parameter(cls_vectors)
+
+    def _find_placeholder_index(self, embedding):
+        """
+        Finds the index where the placeholder ('XXXX') starts in the tokenized prompt.
+        This helps to split the prompt into prefix and suffix dynamically.
+        """
+        # The placeholder 'XXXX' is tokenized as a series of special tokens.
+        # Here, we assume the index of the placeholder is fixed based on self.n_ctx.
+        return embedding.shape[1] // 2  # For simplicity, assume it is in the middle
 
     def forward(self, vehicle_ids):
         """
@@ -244,8 +323,8 @@ class PromptLearner(nn.Module):
         batch_size = len(vehicle_ids)
         dynamic_prompts = []
 
+        # Generate dynamic prompts for each vehicle in the batch
         for vehicle_id in vehicle_ids:
-            # Access the features for each vehicle ID, defaulting to 'unknown' if not found
             features = self.vehicle_features.get(vehicle_id, {'color': 'unknown', 'type': 'unknown'})
             prompt_text = self.ctx_init.format(**features)
             tokenized_prompt = clip.tokenize(prompt_text).cuda()
@@ -258,10 +337,10 @@ class PromptLearner(nn.Module):
             embedding = self.token_embedding(tokenized_prompts).type(self.cls_ctx.dtype)
 
         # Split the embedding into prefix and suffix parts
-        prefix = embedding[:, :self.n_cls_ctx + 1, :]
-        suffix = embedding[:, self.n_cls_ctx + 1 + self.n_cls_ctx:, :]
+        prefix = embedding[:, :self.token_prefix.shape[1], :]
+        suffix = embedding[:, self.token_suffix.shape[1] - self.n_ctx:, :]
 
-        # Retrieve class-specific context vectors for each vehicle ID
+        # Retrieve class-specific context vectors
         cls_ctx = self.cls_ctx[vehicle_ids]  # Assuming vehicle_ids are mapped to class indices
 
         # Concatenate prefix, class-specific context, and suffix to form the complete prompt
@@ -269,79 +348,3 @@ class PromptLearner(nn.Module):
 
         return prompts
 
-
-# class PromptLearner(nn.Module):
-#     def __init__(self, num_class, dataset_name, dtype, token_embedding, vehicle_features):
-#         super().__init__()
-#         self.token_embedding = token_embedding
-#         self.vehicle_features = vehicle_features
-
-#         # Define prompt template
-#         if dataset_name.lower() in ["vehicleid", "veri"]:
-#             self.ctx_init = "Photo of {color} {type} X X X X vehicle."
-#         else:
-#             self.ctx_init = "A photo of a X X X X person."
-            
-#         # Define possible colors and types
-#         self.possible_colors = [
-#             'yellow', 'orange', 'green', 'gray', 'red',
-#             'blue', 'white', 'golden', 'brown', 'black'
-#         ]
-        
-#         self.possible_types = [
-#             'sedan', 'suv', 'van', 'hatchback', 'mpv',
-#             'pickup', 'bus', 'truck', 'estate'
-#         ]
-#         # Precompute all color-type combinations
-#         self.color_type_combinations = {}
-#         for color, vehicle_type in product(self.possible_colors, self.possible_types):
-#             prompt_str = f"{color} {vehicle_type}"
-#             tokenized = clip.tokenize([prompt_str]).cuda()
-#             with torch.no_grad():
-#                 self.color_type_combinations[(color, vehicle_type)] = self.token_embedding(tokenized).type(dtype)
-
-#         print(f"Number of precomputed color-type combinations: {len(self.color_type_combinations)}")
-
-#         # Context initialization
-#         self.ctx_dim = 512
-#         self.n_ctx = 4
-
-#         n_cls_ctx = 4
-#         cls_vectors = torch.empty(num_class, n_cls_ctx, ctx_dim, dtype=dtype) 
-#         nn.init.normal_(cls_vectors, std=0.02)
-#         self.cls_ctx = nn.Parameter(cls_vectors) 
-#         self.num_class = num_class
-#         self.n_cls_ctx = n_cls_ctx
-        
-#     def forward(self, labels):
-#         batch_size = labels.shape[0]
-
-#         # Generate dynamic prefixes for each label
-#         dynamic_prefix_embeddings = []
-#         for label in labels:
-#             vehicle_id = self.vehicle_ids[label.item()]
-#             features = self.vehicle_features.get(vehicle_id, {'color': 'unknown', 'type': 'unknown'})
-#             color = features.get('color', 'unknown')
-#             vehicle_type = features.get('type', 'unknown')
-#             prefix_color_type = self.color_type_combinations.get((color, vehicle_type))
-#             if prefix_color_type is None:
-#                 raise ValueError(f"Color-type combination '{color} {vehicle_type}' not found.")
-#             dynamic_prefix = "Photo of " + prefix_color_type
-#             ctx_init = dynamic_prefix + " X X X X vehicle."
-             
-#             tokenized_prompts = clip.tokenize(ctx_init).cuda() 
-#             with torch.no_grad():
-#                 embedding = token_embedding(tokenized_prompts).type(dtype) 
-#             self.tokenized_prompts = tokenized_prompts  # torch.Tensor
-            
-#             self.register_buffer("token_prefix", self.tokenized_prompts[:, :self.n_ctx + 1, :])  
-#             self.register_buffer("token_suffix", self.tokenized_prompts[:, self.n_ctx + 1 + self.n_cls_ctx: , :]) 
-            
-#             # Expand suffix to match batch size
-#             suffix = self.token_suffix.expand(batch_size, -1, -1)  # Shape: (batch_size, 4, 512)
-#             prefix = self.token_prefix.expand(batch_size, -1, -1) 
-
-#             dynamic_prefix_embeddings.append(self.tokenized_prompts)
-#             prompts = torch.cat([dynamic_prefix_embeddings, cls_ctx, suffix,  # (n_cls, *, dim)],dim=1,) 
-
-#         return prompts
