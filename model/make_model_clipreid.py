@@ -202,10 +202,11 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
     return model
 
 class PromptLearner(nn.Module):
-    def __init__(self, num_class, dataset_name, dtype, token_embedding, vehicle_features):
+    def __init__(self, num_class, dataset_name, dtype, clip_model, vehicle_features):
         super().__init__()
-        self.token_embedding = token_embedding
-        self.vehicle_features = vehicle_features  # Store the vehicle features dictionary
+        
+        # Store the vehicle features dictionary
+        self.vehicle_features = vehicle_features
 
         # Set dynamic template depending on the dataset
         if dataset_name in ["VehicleID", "veri"]:
@@ -217,13 +218,24 @@ class PromptLearner(nn.Module):
         self.num_class = num_class
         self.n_cls_ctx = 4
 
+        # Token embedding from the clip_model
+        self.token_embedding = clip_model.token_embedding
+
+        # Initialize a default tokenized prompt for all vehicles
+        default_prompt = self.ctx_init.format(color="unknown", type="unknown")
+        self.tokenized_prompts = clip.tokenize(default_prompt).cuda()
+
+        with torch.no_grad():
+            embedding = self.token_embedding(self.tokenized_prompts).type(dtype)
+
+        # Save the prefix and suffix based on the default embedding
+        self.register_buffer("token_prefix", embedding[:, :self.n_cls_ctx + 1, :])
+        self.register_buffer("token_suffix", embedding[:, self.n_cls_ctx + 1 + self.n_cls_ctx:, :])
+
         # Initialize class-specific context vectors
         cls_vectors = torch.empty(num_class, self.n_cls_ctx, self.ctx_dim, dtype=dtype)
         nn.init.normal_(cls_vectors, std=0.02)
         self.cls_ctx = nn.Parameter(cls_vectors)
-
-        # Token embedding from the clip_model
-        self.token_embedding = token_embedding
 
     def forward(self, vehicle_ids):
         """
