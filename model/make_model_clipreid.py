@@ -204,7 +204,7 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
 class PromptLearner(nn.Module):
     def __init__(self, num_class, dataset_name, dtype, token_embedding, vehicle_features):
         super().__init__()
-
+        self.token_embedding = token_embedding
         self.vehicle_features = vehicle_features  # Store the vehicle features dictionary
 
         # Set dynamic template depending on the dataset
