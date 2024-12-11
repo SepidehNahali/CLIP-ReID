@@ -68,17 +68,23 @@ TEST:
   NECK_FEAT: 'before'
   FEAT_NORM: 'yes'
 
+#kaggle
 DATASETS:
   NAMES: ('veri')  # Use the VeRi dataset
-  ROOT_DIR: ('/content/VeRi/VeRi')  # Update with your dataset directory path
-  LABEL_FILE: '/content/VeRi/VeRi/train_label.xml'
-  COLOR_FILE: '/content/VeRi/VeRi/list_color.txt'
-  TYPE_FILE: '/content/VeRi/VeRi/list_type.txt'
-  CAMERA_FILE: '/content/VeRi/VeRi/camera_ID.txt'
+  ROOT_DIR: ('/kaggle/input/veridataset/VeRi')  # Update with your dataset directory path
+  LABEL_FILE: '/kaggle/input/veridataset/VeRi/train_label.xml'
+  COLOR_FILE: '/kaggle/input/veridataset/VeRi/list_color.txt'
+  TYPE_FILE: '/kaggle/input/veridataset/VeRi/list_type.txt'
+  CAMERA_FILE: '/kaggle/input/veridataset/VeRi/camera_ID.txt'
+OUTPUT_DIR: '/kaggle/working/output'  # Adjust if necessary
 
-OUTPUT_DIR: '/content/drive/MyDrive/output'  # Adjust if necessary
-#   NAMES: ('veri')
-#   ROOT_DIR: ('/kaggle/input/veridataset/VeRi')  # Update with your dataset directory path
-# OUTPUT_DIR: '/kaggle/working/output'  # Adjust if necessary
-
+#colab
+# DATASETS:
+#   NAMES: ('veri')  # Use the VeRi dataset
+#   ROOT_DIR: ('/content/VeRi/VeRi')  # Update with your dataset directory path
+#   LABEL_FILE: '/content/VeRi/VeRi/train_label.xml'
+#   COLOR_FILE: '/content/VeRi/VeRi/list_color.txt'
+#   TYPE_FILE: '/content/VeRi/VeRi/list_type.txt'
+#   CAMERA_FILE: '/content/VeRi/VeRi/camera_ID.txt'
+# OUTPUT_DIR: '/content/drive/MyDrive/output'  # Adjust if necessary
 # CUDA_VISIBLE_DEVICES=0 python train_clipreid.py --config_file configs/veri/vit_clipreid.yml
