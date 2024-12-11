@@ -219,7 +219,7 @@ class PromptLearner(nn.Module):
         self.n_cls_ctx = 4
 
         # Token embedding from the clip_model
-        self.token_embedding = clip_model.token_embedding
+        self.token_embedding = token_embedding
 
         # Initialize a default tokenized prompt for all vehicles
         default_prompt = self.ctx_init.format(color="unknown", type="unknown")
