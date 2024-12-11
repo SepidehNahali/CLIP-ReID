@@ -91,15 +91,15 @@ class build_transformer(nn.Module):
         if cfg.MODEL.SIE_CAMERA and cfg.MODEL.SIE_VIEW:
             self.cv_embed = nn.Parameter(torch.zeros(camera_num * view_num, self.in_planes))
             trunc_normal_(self.cv_embed, std=.02)
-            print('camera number is : {}'.format(camera_num))
+            # print('camera number is : {}'.format(camera_num))
         elif cfg.MODEL.SIE_CAMERA:
             self.cv_embed = nn.Parameter(torch.zeros(camera_num, self.in_planes))
             trunc_normal_(self.cv_embed, std=.02)
-            print('camera number is : {}'.format(camera_num))
+            # print('camera number is : {}'.format(camera_num))
         elif cfg.MODEL.SIE_VIEW:
             self.cv_embed = nn.Parameter(torch.zeros(view_num, self.in_planes))
             trunc_normal_(self.cv_embed, std=.02)
-            print('camera number is : {}'.format(view_num))
+            # print('camera number is : {}'.format(view_num))
 
         
         # Load vehicle features
@@ -109,9 +109,9 @@ class build_transformer(nn.Module):
         camera_file = cfg.DATASETS.CAMERA_FILE
 
         vehicle_features = load_vehicle_features(label_file, color_file, type_file, camera_file)
-        print("!!!!!!!!!!!!!!!!!!!!!!!build_transformer!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print('vehicle_features',vehicle_features)
-        print('vehicle_features_keys',vehicle_features.keys())
+        # print("!!!!!!!!!!!!!!!!!!!!!!!build_transformer!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        # print('vehicle_features',vehicle_features)
+        # print('vehicle_features_keys',vehicle_features.keys())
         self.prompt_learner = PromptLearner(num_classes, 'veri', clip_model.dtype, clip_model.token_embedding, vehicle_features)
         # Assuming clip_model is the full CLIP model object, not just token_embedding
 
