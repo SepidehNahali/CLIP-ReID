@@ -202,7 +202,7 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
     return model
 
 class PromptLearner(nn.Module):
-    def __init__(self, num_class, dataset_name, dtype, clip_model, vehicle_features):
+    def __init__(self, num_class, dataset_name, dtype, token_embedding, vehicle_features):
         super().__init__()
         
         # Store the vehicle features dictionary
