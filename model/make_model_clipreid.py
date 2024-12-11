@@ -279,13 +279,13 @@ class PromptLearner(nn.Module):
 
         # Define prompt template with placeholders for learnable context
         if dataset_name.lower() in ["vehicleid", "veri"]:
-            self.ctx_init = "Photo of {color} {type} XXXX vehicle."
+            self.ctx_init = "Photo of {color} {type} X X X X vehicle."
         else:
-            self.ctx_init = "A photo of a XXXX person."
+            self.ctx_init = "A photo of a X X X X person."
       
         # Dimensions
         self.ctx_dim = 512
-        self.n_ctx = 4  # Number of learnable tokens (XXXX)
+        self.n_ctx = 4  # Number of learnable tokens (X X X X)
         self.num_class = num_class
 
         # Tokenize a default prompt to get prefix and suffix
@@ -294,24 +294,15 @@ class PromptLearner(nn.Module):
 
         with torch.no_grad():
             embedding = self.token_embedding(self.tokenized_prompts).type(dtype)
+        self.n_cls_ctx = 4
+        # Save dynamic prefix (everything before 'X X X X') and suffix (everything after 'X X X X')
+        self.register_buffer("token_prefix", embedding[:, :self.n_ctx + 1, :])
+        self.register_buffer("token_suffix", embedding[:, self.n_ctx + 1 + self.n_cls_ctx:, :])
 
-        # Save dynamic prefix (everything before 'XXXX') and suffix (everything after 'XXXX')
-        self.register_buffer("token_prefix", embedding[:, :self._find_placeholder_index(embedding), :])
-        self.register_buffer("token_suffix", embedding[:, self._find_placeholder_index(embedding) + self.n_ctx:, :])
-
-        # Initialize learnable context vectors (for 'XXXX')
+        # Initialize learnable context vectors (for 'X X X X')
         cls_vectors = torch.empty(num_class, self.n_ctx, self.ctx_dim, dtype=dtype)
         nn.init.normal_(cls_vectors, std=0.02)
         self.cls_ctx = nn.Parameter(cls_vectors)
-
-    def _find_placeholder_index(self, embedding):
-        """
-        Finds the index where the placeholder ('XXXX') starts in the tokenized prompt.
-        This helps to split the prompt into prefix and suffix dynamically.
-        """
-        # The placeholder 'XXXX' is tokenized as a series of special tokens.
-        # Here, we assume the index of the placeholder is fixed based on self.n_ctx.
-        return embedding.shape[1] // 2  # For simplicity, assume it is in the middle
 
     def forward(self, vehicle_ids):
         """
