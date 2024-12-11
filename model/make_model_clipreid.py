@@ -304,11 +304,6 @@ class PromptLearner(nn.Module):
         nn.init.normal_(cls_vectors, std=0.02)
         self.cls_ctx = nn.Parameter(cls_vectors)
 
-        # Padding length to match CLIP's token size (77)
-        self.prompt_length = 77
-        self.n_cls_ctx = 4  # Number of learnable tokens per class
-        self.pad_length = self.prompt_length - self.n_cls_ctx
-
 
     def forward(self, vehicle_ids):
         """
@@ -340,11 +335,6 @@ class PromptLearner(nn.Module):
         # Concatenate prefix, class-specific context, and suffix to form the complete prompt
         prompts = torch.cat([prefix, cls_ctx, suffix], dim=1)
         
-        # Pad the combined embeddings to match CLIP's token size
-        if self.pad_length > 0:
-            pad_embeddings = torch.zeros(batch_size, self.pad_length, prompts.size(-1), device=prompts.device)
-            combined_embeddings = torch.cat([prompts, pad_embeddings], dim=1)
-        print(f"  Final combined embeddings shape: {combined_embeddings.shape}, dtype: {combined_embeddings.dtype}")
 
-        return combined_embeddings
+        return prompts
 
