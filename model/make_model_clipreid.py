@@ -223,7 +223,7 @@ class PromptLearner(nn.Module):
         self.cls_ctx = nn.Parameter(cls_vectors)
 
         # Token embedding from the clip_model
-        self.token_embedding = clip_model.token_embedding
+        self.token_embedding = token_embedding
 
     def forward(self, vehicle_ids):
         """
