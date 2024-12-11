@@ -335,6 +335,13 @@ class PromptLearner(nn.Module):
         # Concatenate prefix, class-specific context, and suffix to form the complete prompt
         prompts = torch.cat([prefix, cls_ctx, suffix], dim=1)
         
+        # Pad the prompts to length 77
+        current_length = prompts.shape[1]
+        padding_length = 77 - current_length
+        if padding_length > 0:
+            padding = torch.zeros(batch_size, padding_length, self.ctx_dim, dtype=prompts.dtype, device=prompts.device)
+            prompts = torch.cat([prompts, padding], dim=1)
+
 
         return prompts
 
