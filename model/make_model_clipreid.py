@@ -208,12 +208,12 @@ class PromptLearner(nn.Module):
 
         # Extended prompt with additional descriptive context
         if dataset_name.lower() in ["vehicleid", "veri"]:
-            self.ctx_init = "A photo of a {color} {type} vehicle X X X X X X X X captured by camera {camera_id}."
+            self.ctx_init = "A photo of a {color} {type} vehicle X X X X captured by camera {camera_id}."
         else:
             self.ctx_init = "A photo of a X X X X person."
 
         # Increase learnable tokens
-        self.n_ctx = 8  # Increased from 4 to 8
+        self.n_ctx = 4  
         self.ctx_dim = 512
         self.num_class = num_class
 
@@ -226,7 +226,7 @@ class PromptLearner(nn.Module):
 
         # Save dynamic prefix and suffix
         self.register_buffer("token_prefix", embedding[:, :8, :])
-        self.register_buffer("token_suffix", embedding[:, 16:, :])
+        self.register_buffer("token_suffix", embedding[:, 12:, :])
 
         # Initialize learnable context vectors
         cls_vectors = torch.empty(num_class, self.n_ctx, self.ctx_dim, dtype=dtype)
