@@ -273,7 +273,7 @@ class PromptLearner(nn.Module):
         self.vehicle_features = vehicle_features
         print(f'self.vehicle_features: {self.vehicle_features}')
 
-        for param in self.prompt_learner.token_embedding.parameters():
+        for param in self.token_embedding.parameters():
             print(f"token_embedding requires_grad: {param.requires_grad}")
 
         # Extended prompt with additional descriptive context
