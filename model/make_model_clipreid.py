@@ -113,7 +113,6 @@ class build_transformer(nn.Module):
         # print('vehicle_features',vehicle_features)
         # print('vehicle_features_keys',vehicle_features.keys())
         self.prompt_learner = PromptLearner(num_classes, 'veri', clip_model.dtype, clip_model.token_embedding, vehicle_features)
-        print(f'vehicle_features: {vehicle_features}')
         # Assuming clip_model is the full CLIP model object, not just token_embedding
 
         self.text_encoder = TextEncoder(clip_model)
@@ -314,7 +313,7 @@ class PromptLearner(nn.Module):
         for vehicle_id in vehicle_ids:
             features = self.vehicle_features.get(vehicle_id, {'color': 'unknown', 'type': 'unknown', 'camera_id': 'unknown'})
             print(f'features are {features} for vehicle_id {vehicle_id}')
-            print(f'self.vehicle_features: {self.vehicle_features.type()}')
+            print(f"self.vehicle_features keys: {self.vehicle_features.keys()}")
             print(f'self.vehicle_features: {self.vehicle_features[vehicle_id]}')
 
             prompt_text = self.ctx_init.format(**features)
