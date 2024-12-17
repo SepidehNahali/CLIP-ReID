@@ -200,20 +200,18 @@ def load_clip_to_cpu(backbone_name, h_resolution, w_resolution, vision_stride_si
     model = clip.build_model(state_dict or model.state_dict(), h_resolution, w_resolution, vision_stride_size)
 
     return model
+
 class PromptLearner(nn.Module):
     def __init__(self, num_class, dataset_name, dtype, token_embedding, vehicle_features):
         super().__init__()
         self.token_embedding = token_embedding
         self.vehicle_features = vehicle_features
 
-        # Extended prompt with additional descriptive context
-        if dataset_name.lower() in ["vehicleid", "veri"]:
-            self.ctx_init = "A photo of a {color} {type} vehicle X X X X captured by camera {camera_id}."
-        else:
-            self.ctx_init = "A photo of a X X X X person."
+        # New prompt template with placeholders for learnable context
+        self.ctx_init = "A vehicle with color: {color}, type: {type}, and captured by camera: {camera_id}. Learnable Context: X X X X."
 
-        # Increase learnable tokens
-        self.n_ctx = 4  
+        # Define the number of learnable tokens
+        self.n_ctx = 4  # Number of learnable tokens
         self.ctx_dim = 512
         self.num_class = num_class
 
@@ -224,9 +222,9 @@ class PromptLearner(nn.Module):
         with torch.no_grad():
             embedding = self.token_embedding(self.tokenized_prompts).type(dtype)
 
-        # Save dynamic prefix and suffix
-        self.register_buffer("token_prefix", embedding[:, :8, :])
-        self.register_buffer("token_suffix", embedding[:, 12:, :])
+        # Save the prefix and suffix parts
+        self.register_buffer("token_prefix", embedding[:, :12, :])  # Up to "camera:"
+        self.register_buffer("token_suffix", embedding[:, 16:, :])  # After "Learnable Context:"
 
         # Initialize learnable context vectors
         cls_vectors = torch.empty(num_class, self.n_ctx, self.ctx_dim, dtype=dtype)
@@ -237,27 +235,25 @@ class PromptLearner(nn.Module):
         batch_size = len(vehicle_ids)
         dynamic_prompts = []
 
-        # Generate dynamic prompts for each vehicle in the batch
         for vehicle_id in vehicle_ids:
             features = self.vehicle_features.get(vehicle_id, {'color': 'unknown', 'type': 'unknown', 'camera_id': 'unknown'})
             prompt_text = self.ctx_init.format(**features)
             tokenized_prompt = clip.tokenize(prompt_text).cuda()
             dynamic_prompts.append(tokenized_prompt)
 
-        # Stack the tokenized prompts for the batch
         tokenized_prompts = torch.cat(dynamic_prompts, dim=0)
 
         with torch.no_grad():
             embedding = self.token_embedding(tokenized_prompts).type(self.cls_ctx.dtype)
 
-        # Split the embedding into prefix and suffix parts
+        # Split embedding into prefix and suffix
         prefix = embedding[:, :self.token_prefix.shape[1], :]
         suffix = embedding[:, self.token_suffix.shape[1] - self.n_ctx:, :]
 
-        # Retrieve class-specific context vectors
+        # Retrieve class-specific learnable context vectors
         cls_ctx = self.cls_ctx[vehicle_ids]
 
-        # Concatenate prefix, class-specific context, and suffix
+        # Concatenate prefix, learnable context, and suffix
         prompts = torch.cat([prefix, cls_ctx, suffix], dim=1)
 
         # Pad the prompts to length 77
@@ -268,6 +264,84 @@ class PromptLearner(nn.Module):
             prompts = torch.cat([prompts, padding], dim=1)
 
         return prompts
+
+# class PromptLearner(nn.Module):
+#     def __init__(self, num_class, dataset_name, dtype, token_embedding, vehicle_features):
+#         super().__init__()
+#         self.token_embedding = token_embedding
+#         self.vehicle_features = vehicle_features
+#         print(f'num_class is: {num_class}')
+
+#         # Extended prompt with additional descriptive context
+#         if dataset_name.lower() in ["vehicleid", "veri"]:
+#             self.ctx_init = "A photo of a {color} {type} vehicle X X X X captured by camera {camera_id}."
+#             print(f'prompt is: {self.ctx_init}')
+#         else:
+#             self.ctx_init = "A photo of a X X X X person."
+#             print(f'prompt is: {self.ctx_init}')
+
+#         # Increase learnable tokens
+#         self.n_ctx = 4  
+#         self.ctx_dim = 512
+#         self.num_class = num_class
+
+#         # Tokenize a default prompt to get prefix and suffix
+#         default_prompt = self.ctx_init.format(color="unknown", type="unknown", camera_id="unknown")
+#         self.tokenized_prompts = clip.tokenize(default_prompt).cuda()
+#         print(f'self.tokenized_prompts is: {self.tokenized_prompts}')
+
+#         with torch.no_grad():
+#             embedding = self.token_embedding(self.tokenized_prompts).type(dtype)
+#             print(f'embedding shape is: {embedding.shape}')
+
+#         # Save dynamic prefix and suffix
+#         self.register_buffer("token_prefix", embedding[:, :8, :])
+#         self.register_buffer("token_suffix", embedding[:, 12:, :])
+
+#         # Initialize learnable context vectors
+#         cls_vectors = torch.empty(num_class, self.n_ctx, self.ctx_dim, dtype=dtype)
+#         nn.init.normal_(cls_vectors, std=0.02)
+#         self.cls_ctx = nn.Parameter(cls_vectors)
+
+#     def forward(self, vehicle_ids):
+#         batch_size = len(vehicle_ids)
+#         dynamic_prompts = []
+
+#         # Generate dynamic prompts for each vehicle in the batch
+#         for vehicle_id in vehicle_ids:
+#             features = self.vehicle_features.get(vehicle_id, {'color': 'unknown', 'type': 'unknown', 'camera_id': 'unknown'})
+#             print(f'features are {features} for vehicle_id {vehicle_id}')
+#             prompt_text = self.ctx_init.format(**features)
+#             tokenized_prompt = clip.tokenize(prompt_text).cuda()
+#             dynamic_prompts.append(tokenized_prompt)
+
+#         # Stack the tokenized prompts for the batch
+#         tokenized_prompts = torch.cat(dynamic_prompts, dim=0)
+
+#         with torch.no_grad():
+#             embedding = self.token_embedding(tokenized_prompts).type(self.cls_ctx.dtype)
+
+#         # Split the embedding into prefix and suffix parts
+#         prefix = embedding[:, :self.token_prefix.shape[1], :]
+#         suffix = embedding[:, self.token_suffix.shape[1] - self.n_ctx:, :]
+#         print(f'self.token_suffix is : {self.token_suffix}')
+#         print(f'self.token_prefix is : {self.token_prefix}')
+
+#         # Retrieve class-specific context vectors
+#         cls_ctx = self.cls_ctx[vehicle_ids]
+#         print(f'cls_ctx is class-specific context vectors equal to : {cls_ctx} for vehicle_ids:{vehicle_ids}')
+
+#         # Concatenate prefix, class-specific context, and suffix
+#         prompts = torch.cat([prefix, cls_ctx, suffix], dim=1)
+#         print(f'Concatenate prefix, class-specific context, and suffixin the prompts:{prompts}')
+#         # Pad the prompts to length 77
+#         current_length = prompts.shape[1]
+#         padding_length = 77 - current_length
+#         if padding_length > 0:
+#             padding = torch.zeros(batch_size, padding_length, self.ctx_dim, dtype=prompts.dtype, device=prompts.device)
+#             prompts = torch.cat([prompts, padding], dim=1)
+
+#         return prompts
 
 # class PromptLearner(nn.Module):
 #     def __init__(self, num_class, dataset_name, dtype, token_embedding, vehicle_features):
