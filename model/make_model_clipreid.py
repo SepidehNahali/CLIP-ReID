@@ -270,7 +270,6 @@ class PromptLearner(nn.Module):
         super().__init__()
         self.token_embedding = token_embedding
         self.vehicle_features = vehicle_features
-        print(f'self.vehicle_features: {self.vehicle_features}')
 
         for param in self.token_embedding.parameters():
             print(f"token_embedding requires_grad: {param.requires_grad}")
@@ -311,10 +310,10 @@ class PromptLearner(nn.Module):
 
         # Generate dynamic prompts for each vehicle in the batch
         for vehicle_id in vehicle_ids:
-            features = self.vehicle_features.get(vehicle_id, {'color': 'unknown', 'type': 'unknown', 'camera_id': 'unknown'})
-            print(f'features are {features} for vehicle_id {vehicle_id}')
-            print(f"self.vehicle_features keys: {self.vehicle_features.keys()}")
-            print(f'self.vehicle_features: {self.vehicle_features[vehicle_id]}')
+            formatted_vehicle_id = f"{vehicle_id:04d}"
+            features = self.vehicle_features.get(formatted_vehicle_id, {'color': 'unknown', 'type': 'unknown', 'camera_id': 'unknown'})
+            print(f"Formatted vehicle_id: '{formatted_vehicle_id}'")
+            print(f"Features are {features} for vehicle_id {vehicle_id}")
 
             prompt_text = self.ctx_init.format(**features)
             tokenized_prompt = clip.tokenize(prompt_text).cuda()
