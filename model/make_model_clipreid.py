@@ -271,16 +271,16 @@ class PromptLearner(nn.Module):
         self.token_embedding = token_embedding
         self.vehicle_features = vehicle_features
 
-        for param in self.token_embedding.parameters():
-            print(f"token_embedding requires_grad: {param.requires_grad}")
+        # for param in self.token_embedding.parameters():
+        #     print(f"token_embedding requires_grad: {param.requires_grad}")
 
         # Extended prompt with additional descriptive context
         if dataset_name.lower() in ["vehicleid", "veri"]:
             self.ctx_init = "A photo of a {color} {type} vehicle X X X X captured by camera {camera_id}."
-            print(f'prompt is: {self.ctx_init}')
+            # print(f'prompt is: {self.ctx_init}')
         else:
             self.ctx_init = "A photo of a X X X X person."
-            print(f'prompt is: {self.ctx_init}')
+            # print(f'prompt is: {self.ctx_init}')
 
         # Increase learnable tokens
         self.n_ctx = 4  
@@ -290,7 +290,7 @@ class PromptLearner(nn.Module):
         # Tokenize a default prompt to get prefix and suffix
         default_prompt = self.ctx_init.format(color="unknown", type="unknown", camera_id="unknown")
         self.tokenized_prompts = clip.tokenize(default_prompt).cuda()
-        print(f'self.tokenized_prompts is: {self.tokenized_prompts}')
+        # print(f'self.tokenized_prompts is: {self.tokenized_prompts}')
 
         with torch.no_grad():
             embedding = self.token_embedding(self.tokenized_prompts).type(dtype)
@@ -312,8 +312,8 @@ class PromptLearner(nn.Module):
         for vehicle_id in vehicle_ids:
             formatted_vehicle_id = f"{vehicle_id:04d}"
             features = self.vehicle_features.get(formatted_vehicle_id, {'color': 'unknown', 'type': 'unknown', 'camera_id': 'unknown'})
-            print(f"Formatted vehicle_id: '{formatted_vehicle_id}'")
-            print(f"Features are {features} for vehicle_id {vehicle_id}")
+            # print(f"Formatted vehicle_id: '{formatted_vehicle_id}'")
+            # print(f"Features are {features} for vehicle_id {vehicle_id}")
 
             prompt_text = self.ctx_init.format(**features)
             tokenized_prompt = clip.tokenize(prompt_text).cuda()
