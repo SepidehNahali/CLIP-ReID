@@ -318,7 +318,7 @@ class PromptLearner(nn.Module):
             # print(f"Features are {features} for vehicle_id {vehicle_id}")
 
             prompt_text = self.ctx_init.format(**features)
-            print(f'prompt_text: {prompt_text}')
+            # print(f'prompt_text: {prompt_text}')
             tokenized_prompt = clip.tokenize(prompt_text).cuda()
             dynamic_prompts.append(tokenized_prompt)
 
